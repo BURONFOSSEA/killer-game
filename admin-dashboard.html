@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Killer Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .nav {
+      background: white;
+      padding: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .nav button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #f5576c;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    
+    .nav button:hover {
+      background: #e04455;
+    }
+    
+    .nav button.active {
+      background: #333;
+    }
+    
+    .content {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    
+    .section {
+      display: none;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .section.active {
+      display: block;
+    }
+    
+    h2 {
+      color: #f5576c;
+      margin-bottom: 20px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    th {
+      background: #f5576c;
+      color: white;
+    }
+    
+    tr:hover {
+      background: #f9f9f9;
+    }
+    
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-right: 5px;
+    }
+    
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Vérification de la connexion admin -->
+  <script>
+    if (localStorage.getItem('isAdmin') !== 'true') {
+      window.location.href = 'admin-login.html';
+    }
+  </script>
+
+  <div class="header">
+    <h1>🎯 Admin Dashboard - Killer Game</h1>
+    <p>Gérez vos parties et joueurs</p>
+  </div>
+  
+  <div class="nav">
+    <button onclick="showSection('inscriptions')" class="active">📝 Inscriptions</button>
+    <button onclick="showSection('joueurs')">👥 Joueurs</button>
+    <button onclick="showSection('parties')">🎮 Parties</button>
+    <button onclick="showSection('defis')">💡 Défis</button>
+    <button onclick="showSection('kills')">⚔️ Kills</button>
+  </div>
+  
+  <div class="content">
+    <!-- Section Inscriptions -->
+    <div id="inscriptions" class="section active">
+      <h2>📝 Inscriptions en attente</h2>
+      <div id="inscriptionsTable"></div>
+    </div>
+    
+    <!-- Section Joueurs -->
+    <div id="joueurs" class="section">
+      <h2>👥 Liste des joueurs validés</h2>
+      <div id="joueursTable"></div>
+    </div>
+    
+    <!-- Section Parties -->
+    <div id="parties" class="section">
+      <h2>🎮 Gestion des parties</h2>
+      
+      <div style="margin-bottom: 30px;">
+        <h3>Créer une nouvelle partie</h3>
+        <div class="form-group">
+          <label>Nom de la partie</label>
+          <input type="text" id="nomPartie" placeholder="Ex: Partie de Noël 2024">
+        </div>
+        <button class="btn btn-primary" onclick="creerPartie()">Créer la partie</button>
+      </div>
+      
+      <div id="partiesTable"></div>
+    </div>
+    
+    <!-- Section Défis -->
+    <div id="defis" class="section">
+      <h2>💡 Gestion des défis</h2>
+      
+      <div style="margin-bottom: 30px;">
+        <h3>Ajouter un nouveau défi</h3>
+        <div class="form-group">
+          <label>Description du défi</label>
+          <input type="text" id="nouveauDefi" placeholder="Ex: Faire un high-five à votre cible">
+        </div>
+        <button class="btn btn-primary" onclick="ajouterDefi()">Ajouter le défi</button>
+      </div>
+      
+      <div id="defisTable"></div>
+    </div>
+    
+    <!-- Section Kills -->
+    <div id="kills" class="section">
+      <h2>⚔️ Kills contestés</h2>
+      <div id="killsTable"></div>
+    </div>
+  </div>
+
+  <script src="supabaseClient.js"></script>
+  <script>
+    // Fonction pour changer de section
+    function showSection(sectionName) {
+      // Masquer toutes les sections
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      
+      // Afficher la section demandée
+      document.getElementById(sectionName).classList.add('active');
+      event.target.classList.add('active');
+      
+      // Charger les données de la section
+      if (sectionName === 'inscriptions') chargerInscriptions();
+      if (sectionName === 'joueurs') chargerJoueurs();
+      if (sectionName === 'parties') chargerParties();
+      if (sectionName === 'defis') chargerDefis();
+      if (sectionName === 'kills') chargerKills();
+    }
+    
+    // GESTION DES INSCRIPTIONS
+    async function chargerInscriptions() {
+      const inscriptions = await supabaseSelect('inscriptions_attente', '?statut=eq.en_attente');
+      
+      let html = '<table><tr><th>Nom</th><th>Prénom</th><th>Pseudo</th><th>Téléphone</th><th>Actions</th></tr>';
+      
+      inscriptions.forEach(inscription => {
+        html += `
+          <tr>
+            <td>${inscription.nom}</td>
+            <td>${inscription.prenom}</td>
+            <td>${inscription.pseudo}</td>
+            <td>${inscription.telephone}</td>
+            <td>
+              <button class="btn btn-success" onclick="validerInscription('${inscription.id}', '${inscription.telephone}', '${inscription.nom}', '${inscription.prenom}', '${inscription.pseudo}', '${inscription.mot_de_passe}')">✅ Valider</button>
+              <button class="btn btn-danger" onclick="refuserInscription('${inscription.id}')">❌ Refuser</button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += '</table>';
+      document.getElementById('inscriptionsTable').innerHTML = html;
+    }
+    
+    async function validerInscription(id, telephone, nom, prenom, pseudo, mdp) {
+      // Ajouter le joueur dans la table joueurs
+      await supabaseInsert('joueurs', {
+        telephone: telephone,
+        nom: nom,
+        prenom: prenom,
+        pseudo: pseudo,
+        mot_de_passe: mdp,
+        statut_global: 'actif'
+      });
+      
+      // Mettre à jour le statut de l'inscription
+      await supabaseUpdate('inscriptions_attente', { statut: 'valide' }, `?id=eq.${id}`);
+      
+      alert('✅ Joueur validé !');
+      chargerInscriptions();
+    }
+    
+    async function refuserInscription(id) {
+      await supabaseUpdate('inscriptions_attente', { statut: 'refuse' }, `?id=eq.${id}`);
+      alert('❌ Inscription refusée');
+      chargerInscriptions();
+    }
+    
+    // GESTION DES JOUEURS
+    async function chargerJoueurs() {
+      const joueurs = await supabaseSelect('joueurs');
+      
+      let html = '<table><tr><th>Nom</th><th>Prénom</th><th>Pseudo</th><th>Téléphone</th><th>Statut</th></tr>';
+      
+      joueurs.forEach(joueur => {
+        html += `
+          <tr>
+            <td>${joueur.nom}</td>
+            <td>${joueur.prenom}</td>
+            <td>${joueur.pseudo}</td>
+            <td>${joueur.telephone}</td>
+            <td>${joueur.statut_global}</td>
+          </tr>
+        `;
+      });
+      
+      html += '</table>';
+      document.getElementById('joueursTable').innerHTML = html;
+    }
+    
+    // GESTION DES PARTIES
+    async function creerPartie() {
+      const nomPartie = document.getElementById('nomPartie').value;
+      
+      if (!nomPartie) {
+        alert('⚠️ Veuillez entrer un nom de partie');
+        return;
+      }
+      
+      await supabaseInsert('parties', {
+        nom_partie: nomPartie,
+        statut: 'creee'
+      });
+      
+      alert('✅ Partie créée !');
+      document.getElementById('nomPartie').value = '';
+      chargerParties();
+    }
+    
+    async function chargerParties() {
+      const parties = await supabaseSelect('parties');
+      
+      let html = '<table><tr><th>Nom de la partie</th><th>Statut</th><th>Date</th><th>Actions</th></tr>';
+      
+      parties.forEach(partie => {
+        html += `
+          <tr>
+            <td>${partie.nom_partie}</td>
+            <td>${partie.statut}</td>
+            <td>${new Date(partie.created_at).toLocaleDateString('fr-FR')}</td>
+            <td>
+              ${partie.statut === 'creee' ? `<button class="btn btn-primary" onclick="configurerPartie('${partie.id}')">⚙️ Configurer</button>` : ''}
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += '</table>';
+      document.getElementById('partiesTable').innerHTML = html;
+    }
+    
+    function configurerPartie(idPartie) {
+      alert('🎮 Configuration de partie (à développer dans l\'étape 5)');
+      // Cette fonctionnalité sera développée dans l'étape 5
+    }
+    
+    // GESTION DES DÉFIS
+    async function ajouterDefi() {
+      const description = document.getElementById('nouveauDefi').value;
+      
+      if (!description) {
+        alert('⚠️ Veuillez entrer une description');
+        return;
+      }
+      
+      await supabaseInsert('defis', {
+        description: description
+      });
+      
+      alert('✅ Défi ajouté !');
+      document.getElementById('nouveauDefi').value = '';
+      chargerDefis();
+    }
+    
+    async function chargerDefis() {
+      const defis = await supabaseSelect('defis');
+      
+      let html = '<table><tr><th>Description du défi</th></tr>';
+      
+      defis.forEach(defi => {
+        html += `
+          <tr>
+            <td>${defi.description}</td>
+          </tr>
+        `;
+      });
+      
+      html += '</table>';
+      document.getElementById('defisTable').innerHTML = html;
+    }
+    
+    // GESTION DES KILLS
+    async function chargerKills() {
+      const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
+      
+      let html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
+      
+      if (kills.length === 0) {
+        html = '<p>Aucun kill contesté pour le moment.</p>';
+      } else {
+        for (const kill of kills) {
+          // Récupérer les infos du tueur
+          const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+          // Récupérer les infos de la cible
+          const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+          // Récupérer le défi
+          const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+          
+          html += `
+            <tr>
+              <td>${tueur[0].pseudo}</td>
+              <td>${cible[0].pseudo}</td>
+              <td>${defi[0].description}</td>
+              <td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td>
+              <td>
+                <button class="btn btn-success" onclick="validerKill('${kill.id}')">✅ Valider</button>
+                <button class="btn btn-danger" onclick="invaliderKill('${kill.id}')">❌ Invalider</button>
+              </td>
+            </tr>
+          `;
+        }
+        html += '</table>';
+      }
+      
+      document.getElementById('killsTable').innerHTML = html;
+    }
+    
+    async function validerKill(idKill) {
+      await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
+      alert('✅ Kill validé par l\'admin !');
+      chargerKills();
+      // TODO: Mettre à jour le statut du joueur tué et assigner nouvelle cible
+    }
+    
+    async function invaliderKill(idKill) {
+      await supabaseUpdate('kills_en_attente', { statut_kill: 'refuse' }, `?id=eq.${idKill}`);
+      alert('❌ Kill invalidé');
+      chargerKills();
+    }
+    
+    // Charger les inscriptions au démarrage
+    chargerInscriptions();
+  </script>
+</body>
+</html>
+
+
+                                         
