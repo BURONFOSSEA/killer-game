@@ -464,7 +464,43 @@
           { statut_joueur: 'mort' }, 
           `?id_joueur=eq.${joueurId}&id_partie=eq.${killEnAttente.id_partie}`
         );
+        // 3. Récupérer la cible de la victime (celle du joueur mort)
+        const victime = await supabaseSelect('parties_joueurs', 
+          `?id_joueur=eq.${joueurId}&id_partie=eq.${killEnAttente.id_partie}`
+        );
         
+        if (victime.length > 0) {
+          const nouvelleCible = victime[0].id_cible;
+          const nouveauDefi = victime[0].id_defi;
+          
+          // 4. Assigner cette cible au tueur
+          await supabaseUpdate('parties_joueurs', 
+            { 
+              id_cible: nouvelleCible,
+              id_defi: nouveauDefi
+            }, 
+            `?id_joueur=eq.${killEnAttente.id_tueur}&id_partie=eq.${killEnAttente.id_partie}`
+          );
+          
+          // 5. Mettre à jour l'historique du tueur
+          const tueurData = await supabaseSelect('parties_joueurs', 
+            `?id_joueur=eq.${killEnAttente.id_tueur}&id_partie=eq.${killEnAttente.id_partie}`
+          );
+          
+          if (tueurData.length > 0) {
+            let historique = tueurData[0].historique_kills || [];
+            historique.push({
+              cible: joueurPseudo,
+              date: new Date().toISOString()
+            });
+            
+            await supabaseUpdate('parties_joueurs', 
+              { historique_kills: historique }, 
+              `?id_joueur=eq.${killEnAttente.id_tueur}&id_partie=eq.${killEnAttente.id_partie}`
+            );
+          }
+        }
+   
         afficherAlerte('danger', '💀 Vous avez accepté le kill. Vous êtes éliminé !');
         
         // Recharger le dashboard après 2 secondes
