@@ -158,6 +158,7 @@
     <button onclick="showSection('parties')">🎮 Parties</button>
     <button onclick="showSection('defis')">💡 Défis</button>
     <button onclick="showSection('kills')">⚔️ Kills</button>
+    <button onclick="showSection('classement')">🏆 Classement</button>
   </div>
   
   <div class="content">
@@ -210,6 +211,19 @@
       <h2>⚔️ Kills contestés</h2>
       <div id="killsTable"></div>
     </div>
+        <!-- Section Classement -->
+    <div id="classement" class="section">
+      <h2>🏆 Classement des joueurs</h2>
+      <p style="margin-bottom: 20px;">Sélectionnez une partie pour voir le classement :</p>
+      
+      <div class="form-group">
+        <select id="selectPartieClassement" onchange="afficherClassement()">
+          <option value="">-- Choisir une partie --</option>
+        </select>
+      </div>
+      
+      <div id="classementTable"></div>
+    </div>
   </div>
 
   <script src="supabaseClient.js"></script>
@@ -230,6 +244,8 @@
       if (sectionName === 'parties') chargerParties();
       if (sectionName === 'defis') chargerDefis();
       if (sectionName === 'kills') chargerKills();
+      if (sectionName === 'classement') chargerListePartiesClassement();
+    }
     }
     
     // GESTION DES INSCRIPTIONS
@@ -434,6 +450,67 @@
     }
     
     // Charger les inscriptions au démarrage
+        // GESTION DU CLASSEMENT
+    async function afficherClassement() {
+      const selectPartie = document.getElementById('selectPartieClassement');
+      const idPartie = selectPartie.value;
+      
+      if (!idPartie) {
+        document.getElementById('classementTable').innerHTML = '';
+        return;
+      }
+      
+      // Récupérer tous les joueurs de cette partie avec leur historique
+      const joueursPartie = await supabaseSelect('parties_joueurs', 
+        `?id_partie=eq.${idPartie}&select=*,joueurs(pseudo,nom,prenom)`
+      );
+      
+      // Calculer le nombre de kills pour chaque joueur
+      const classement = joueursPartie.map(jp => ({
+        pseudo: jp.joueurs.pseudo,
+        nom: jp.joueurs.nom,
+        prenom: jp.joueurs.prenom,
+        kills: (jp.historique_kills || []).length,
+        statut: jp.statut_joueur
+      }));
+      
+      // Trier par nombre de kills décroissant
+      classement.sort((a, b) => b.kills - a.kills);
+      
+      // Afficher le classement
+      let html = '<table><tr><th>🏅 Rang</th><th>Joueur</th><th>Kills</th><th>Statut</th></tr>';
+      
+      classement.forEach((joueur, index) => {
+        const medaille = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
+        const statutEmoji = joueur.statut === 'vivant' ? '✅' : '💀';
+        
+        html += `
+          <tr>
+            <td><strong>${medaille}</strong></td>
+            <td>${joueur.pseudo} (${joueur.prenom} ${joueur.nom})</td>
+            <td><strong>${joueur.kills}</strong></td>
+            <td>${statutEmoji} ${joueur.statut}</td>
+          </tr>
+        `;
+      });
+      
+      html += '</table>';
+      document.getElementById('classementTable').innerHTML = html;
+    }
+    
+    async function chargerListePartiesClassement() {
+      const parties = await supabaseSelect('parties', '?statut=eq.lancee');
+      
+      const select = document.getElementById('selectPartieClassement');
+      select.innerHTML = '<option value="">-- Choisir une partie --</option>';
+      
+      parties.forEach(partie => {
+        const option = document.createElement('option');
+        option.value = partie.id;
+        option.textContent = partie.nom_partie;
+        select.appendChild(option);
+      });
+    }
     chargerInscriptions();
   </script>
 <!-- Modal de configuration de partie -->
