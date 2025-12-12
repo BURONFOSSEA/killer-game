@@ -249,7 +249,6 @@
       if (sectionName === 'kills') chargerKills();
       if (sectionName === 'classement') chargerListePartiesClassement();
     }
-    }
     
     async function chargerInscriptions() {
       const inscriptions = await supabaseSelect('inscriptions_attente', '?statut=eq.en_attente');
