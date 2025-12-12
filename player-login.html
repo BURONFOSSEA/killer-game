@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion Joueur - Killer Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      max-width: 350px;
+      width: 100%;
+    }
+    
+    h1 {
+      color: #667eea;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: bold;
+    }
+    
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    
+    input:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    button:hover {
+      background: #5568d3;
+    }
+    
+    .message {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      display: none;
+    }
+    
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    .link a {
+      color: #667eea;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Connexion Joueur</h1>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="telephone">Téléphone</label>
+        <input type="tel" id="telephone" placeholder="0612345678" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" required>
+      </div>
+      
+      <button type="submit">Se connecter</button>
+    </form>
+    
+    <div id="message" class="message"></div>
+    
+    <div class="link">
+      <a href="inscription.html">Pas encore inscrit ? S'inscrire</a>
+    </div>
+  </div>
+
+  <script src="supabaseClient.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const telephone = document.getElementById('telephone').value;
+      const password = document.getElementById('password').value;
+      
+      try {
+        // Vérifier les identifiants dans la table joueurs
+        const joueurs = await supabaseSelect('joueurs', `?telephone=eq.${telephone}&mot_de_passe=eq.${password}`);
+        
+        if (joueurs.length > 0) {
+          // Connexion réussie
+          const joueur = joueurs[0];
+          
+          // Sauvegarder les infos du joueur dans le localStorage
+          localStorage.setItem('joueurId', joueur.id);
+          localStorage.setItem('joueurPseudo', joueur.pseudo);
+          localStorage.setItem('joueurNom', joueur.nom);
+          localStorage.setItem('joueurPrenom', joueur.prenom);
+          
+          // Redirection vers le dashboard joueur
+          window.location.href = 'player-dashboard.html';
+        } else {
+          // Affichage d'erreur
+          const messageDiv = document.getElementById('message');
+          messageDiv.className = 'message error';
+          messageDiv.style.display = 'block';
+          messageDiv.textContent = '❌ Téléphone ou mot de passe incorrect';
+        }
+      } catch (error) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        messageDiv.textContent = '❌ Erreur de connexion';
+      }
+    });
+  </script>
+</body>
+</html>
