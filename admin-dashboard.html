@@ -140,7 +140,6 @@
   </style>
 </head>
 <body>
-  <!-- Vérification de la connexion admin -->
   <script>
     if (localStorage.getItem('isAdmin') !== 'true') {
       window.location.href = 'admin-login.html';
@@ -158,23 +157,19 @@
     <button onclick="showSection('parties')">🎮 Parties</button>
     <button onclick="showSection('defis')">💡 Défis</button>
     <button onclick="showSection('kills')">⚔️ Kills</button>
-    <button onclick="showSection('classement')">🏆 Classement</button>
   </div>
   
   <div class="content">
-    <!-- Section Inscriptions -->
     <div id="inscriptions" class="section active">
       <h2>📝 Inscriptions en attente</h2>
       <div id="inscriptionsTable"></div>
     </div>
     
-    <!-- Section Joueurs -->
     <div id="joueurs" class="section">
       <h2>👥 Liste des joueurs validés</h2>
       <div id="joueursTable"></div>
     </div>
     
-    <!-- Section Parties -->
     <div id="parties" class="section">
       <h2>🎮 Gestion des parties</h2>
       
@@ -190,7 +185,6 @@
       <div id="partiesTable"></div>
     </div>
     
-    <!-- Section Défis -->
     <div id="defis" class="section">
       <h2>💡 Gestion des défis</h2>
       
@@ -206,49 +200,55 @@
       <div id="defisTable"></div>
     </div>
     
-    <!-- Section Kills -->
     <div id="kills" class="section">
       <h2>⚔️ Kills contestés</h2>
       <div id="killsTable"></div>
     </div>
-        <!-- Section Classement -->
-    <div id="classement" class="section">
-      <h2>🏆 Classement des joueurs</h2>
-      <p style="margin-bottom: 20px;">Sélectionnez une partie pour voir le classement :</p>
+  </div>
+
+  <div id="modalConfig" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000;">
+    <div style="background:white; max-width:800px; margin:50px auto; padding:30px; border-radius:10px; max-height:80vh; overflow-y:auto;">
+      <h2>⚙️ Configuration de la partie</h2>
+      <p id="nomPartieConfig" style="color:#666; margin-bottom:20px;"></p>
       
-      <div class="form-group">
-        <select id="selectPartieClassement" onchange="afficherClassement()">
-          <option value="">-- Choisir une partie --</option>
-        </select>
+      <h3>1️⃣ Sélectionner les joueurs</h3>
+      <div id="listeJoueursConfig"></div>
+      
+      <button class="btn btn-primary" onclick="genererBoucle()" style="margin-top:20px;">
+        🔄 Générer la boucle Tueur/Cible
+      </button>
+      
+      <div id="boucleSection" style="display:none; margin-top:30px;">
+        <h3>2️⃣ Boucle Tueur → Cible → Défi</h3>
+        <div id="affichageBoucle"></div>
+        
+        <button class="btn btn-success" onclick="lancerPartie()" style="margin-top:20px;">
+          🚀 Lancer la partie !
+        </button>
       </div>
       
-      <div id="classementTable"></div>
+      <button class="btn btn-danger" onclick="fermerModal()" style="margin-top:20px;">
+        ❌ Fermer
+      </button>
     </div>
   </div>
 
   <script src="supabaseClient.js"></script>
   <script>
-    // Fonction pour changer de section
     function showSection(sectionName) {
-      // Masquer toutes les sections
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
       
-      // Afficher la section demandée
       document.getElementById(sectionName).classList.add('active');
       event.target.classList.add('active');
       
-      // Charger les données de la section
       if (sectionName === 'inscriptions') chargerInscriptions();
       if (sectionName === 'joueurs') chargerJoueurs();
       if (sectionName === 'parties') chargerParties();
       if (sectionName === 'defis') chargerDefis();
       if (sectionName === 'kills') chargerKills();
-      if (sectionName === 'classement') chargerListePartiesClassement();
     }
-  
     
-    // GESTION DES INSCRIPTIONS
     async function chargerInscriptions() {
       const inscriptions = await supabaseSelect('inscriptions_attente', '?statut=eq.en_attente');
       
@@ -274,7 +274,6 @@
     }
     
     async function validerInscription(id, telephone, nom, prenom, pseudo, mdp) {
-      // Ajouter le joueur dans la table joueurs
       await supabaseInsert('joueurs', {
         telephone: telephone,
         nom: nom,
@@ -284,7 +283,6 @@
         statut_global: 'actif'
       });
       
-      // Mettre à jour le statut de l'inscription
       await supabaseUpdate('inscriptions_attente', { statut: 'valide' }, `?id=eq.${id}`);
       
       alert('✅ Joueur validé !');
@@ -297,7 +295,6 @@
       chargerInscriptions();
     }
     
-    // GESTION DES JOUEURS
     async function chargerJoueurs() {
       const joueurs = await supabaseSelect('joueurs');
       
@@ -319,7 +316,6 @@
       document.getElementById('joueursTable').innerHTML = html;
     }
     
-    // GESTION DES PARTIES
     async function creerPartie() {
       const nomPartie = document.getElementById('nomPartie').value;
       
@@ -360,12 +356,6 @@
       document.getElementById('partiesTable').innerHTML = html;
     }
     
-    function configurerPartie(idPartie) {
-      alert('🎮 Configuration de partie (à développer dans l\'étape 5)');
-      // Cette fonctionnalité sera développée dans l'étape 5
-    }
-    
-    // GESTION DES DÉFIS
     async function ajouterDefi() {
       const description = document.getElementById('nouveauDefi').value;
       
@@ -400,59 +390,46 @@
       document.getElementById('defisTable').innerHTML = html;
     }
     
-// GESTION DES KILLS
-async function chargerKills() {
-  const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
-  
-  let html = '';
-  
-  if (kills.length === 0) {
-    html = '<p>Aucun kill contesté pour le moment.</p>';
-  } else {
-    html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
-    
-    for (const kill of kills) {
-      // Récupérer les infos du tueur
-      const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
-      // Récupérer les infos de la cible
-      const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
-      // Récupérer le défi
-      const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+    async function chargerKills() {
+      const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
       
-      if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
-        html += `
-          <tr>
-            <td>${tueur[0].pseudo}</td>
-            <td>${cible[0].pseudo}</td>
-            <td>${defi[0].description}</td>
-            <td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td>
-            <td>
-              <button class="btn btn-success" onclick="validerKill('${kill.id}')">✅ Valider</button>
-              <button class="btn btn-danger" onclick="invaliderKill('${kill.id}')">❌ Invalider</button>
-            </td>
-          </tr>
-        `;
+      let html = '';
+      
+      if (kills.length === 0) {
+        html = '<p>Aucun kill contesté pour le moment.</p>';
+      } else {
+        html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
+        
+        for (const kill of kills) {
+          const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+          const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+          const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+          
+          if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
+            html += `
+              <tr>
+                <td>${tueur[0].pseudo}</td>
+                <td>${cible[0].pseudo}</td>
+                <td>${defi[0].description}</td>
+                <td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td>
+                <td>
+                  <button class="btn btn-success" onclick="validerKill('${kill.id}')">✅ Valider</button>
+                  <button class="btn btn-danger" onclick="invaliderKill('${kill.id}')">❌ Invalider</button>
+                </td>
+              </tr>
+            `;
+          }
+        }
+        html += '</table>';
       }
+      
+      document.getElementById('killsTable').innerHTML = html;
     }
-    html += '</table>';
-  }
-  
-  document.getElementById('killsTable').innerHTML = html;
-}
-
-async function validerKill(idKill) {
-  await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
-  alert('✅ Kill validé par l\'admin !');
-  chargerKills();
-  // TODO: Mettre à jour le statut du joueur tué et assigner nouvelle cible
-}
-
-async function invaliderKill(idKill) {
-  await supabaseUpdate('kills_en_attente', { statut_kill: 'refuse' }, `?id=eq.${idKill}`);
-  alert('❌ Kill invalidé');
-  chargerKills();
-}
-      // TODO: Mettre à jour le statut du joueur tué et assigner nouvelle cible
+    
+    async function validerKill(idKill) {
+      await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
+      alert('✅ Kill validé par l\'admin !');
+      chargerKills();
     }
     
     async function invaliderKill(idKill) {
@@ -461,225 +438,108 @@ async function invaliderKill(idKill) {
       chargerKills();
     }
     
-    // Charger les inscriptions au démarrage
-        // GESTION DU CLASSEMENT
-    async function afficherClassement() {
-      const selectPartie = document.getElementById('selectPartieClassement');
-      const idPartie = selectPartie.value;
+    let partieEnCours = null;
+    let joueursSelectionnes = [];
+    let boucleGeneree = [];
+    
+    async function configurerPartie(idPartie) {
+      partieEnCours = idPartie;
       
-      if (!idPartie) {
-        document.getElementById('classementTable').innerHTML = '';
+      const parties = await supabaseSelect('parties', `?id=eq.${idPartie}`);
+      document.getElementById('nomPartieConfig').textContent = `Partie : ${parties[0].nom_partie}`;
+      
+      const joueurs = await supabaseSelect('joueurs', '?statut_global=eq.actif');
+      
+      let html = '<div style="max-height:300px; overflow-y:auto;">';
+      joueurs.forEach(joueur => {
+        html += `
+          <label style="display:block; padding:10px; border:1px solid #ddd; margin-bottom:5px; cursor:pointer;">
+            <input type="checkbox" value="${joueur.id}" onchange="toggleJoueur(this, '${joueur.id}', '${joueur.pseudo}')">
+            ${joueur.pseudo} (${joueur.nom} ${joueur.prenom})
+          </label>
+        `;
+      });
+      html += '</div>';
+      
+      document.getElementById('listeJoueursConfig').innerHTML = html;
+      document.getElementById('modalConfig').style.display = 'block';
+    }
+    
+    function toggleJoueur(checkbox, id, pseudo) {
+      if (checkbox.checked) {
+        joueursSelectionnes.push({ id, pseudo });
+      } else {
+        joueursSelectionnes = joueursSelectionnes.filter(j => j.id !== id);
+      }
+    }
+    
+    async function genererBoucle() {
+      if (joueursSelectionnes.length < 3) {
+        alert('⚠️ Il faut au moins 3 joueurs pour créer une partie');
         return;
       }
       
-      // Récupérer tous les joueurs de cette partie avec leur historique
-      const joueursPartie = await supabaseSelect('parties_joueurs', 
-        `?id_partie=eq.${idPartie}&select=*,joueurs(pseudo,nom,prenom)`
-      );
+      let joueursMelanges = [...joueursSelectionnes].sort(() => Math.random() - 0.5);
       
-      // Calculer le nombre de kills pour chaque joueur
-      const classement = joueursPartie.map(jp => ({
-        pseudo: jp.joueurs.pseudo,
-        nom: jp.joueurs.nom,
-        prenom: jp.joueurs.prenom,
-        kills: (jp.historique_kills || []).length,
-        statut: jp.statut_joueur
-      }));
+      const defis = await supabaseSelect('defis');
       
-      // Trier par nombre de kills décroissant
-      classement.sort((a, b) => b.kills - a.kills);
-      
-      // Afficher le classement
-      let html = '<table><tr><th>🏅 Rang</th><th>Joueur</th><th>Kills</th><th>Statut</th></tr>';
-      
-      classement.forEach((joueur, index) => {
-        const medaille = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
-        const statutEmoji = joueur.statut === 'vivant' ? '✅' : '💀';
+      boucleGeneree = [];
+      for (let i = 0; i < joueursMelanges.length; i++) {
+        const tueur = joueursMelanges[i];
+        const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
+        const defi = defis[Math.floor(Math.random() * defis.length)];
         
-        html += `
-          <tr>
-            <td><strong>${medaille}</strong></td>
-            <td>${joueur.pseudo} (${joueur.prenom} ${joueur.nom})</td>
-            <td><strong>${joueur.kills}</strong></td>
-            <td>${statutEmoji} ${joueur.statut}</td>
-          </tr>
-        `;
-      });
-      
-      html += '</table>';
-      document.getElementById('classementTable').innerHTML = html;
-    }
-    
-    async function chargerListePartiesClassement() {
-      const parties = await supabaseSelect('parties', '?statut=eq.lancee');
-      
-      const select = document.getElementById('selectPartieClassement');
-      select.innerHTML = '<option value="">-- Choisir une partie --</option>';
-      
-      parties.forEach(partie => {
-        const option = document.createElement('option');
-        option.value = partie.id;
-        option.textContent = partie.nom_partie;
-        select.appendChild(option);
-      });
-    }
-    chargerInscriptions();
-  </script>
-<!-- Modal de configuration de partie -->
-<div id="modalConfig" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000;">
-  <div style="background:white; max-width:800px; margin:50px auto; padding:30px; border-radius:10px; max-height:80vh; overflow-y:auto;">
-    <h2>⚙️ Configuration de la partie</h2>
-    <p id="nomPartieConfig" style="color:#666; margin-bottom:20px;"></p>
-    
-    <h3>1️⃣ Sélectionner les joueurs</h3>
-    <div id="listeJoueursConfig"></div>
-    
-    <button class="btn btn-primary" onclick="genererBoucle()" style="margin-top:20px;">
-      🔄 Générer la boucle Tueur/Cible
-    </button>
-    
-    <div id="boucleSection" style="display:none; margin-top:30px;">
-      <h3>2️⃣ Boucle Tueur → Cible → Défi</h3>
-      <div id="affichageBoucle"></div>
-      
-      <button class="btn btn-success" onclick="lancerPartie()" style="margin-top:20px;">
-        🚀 Lancer la partie !
-      </button>
-    </div>
-    
-    <button class="btn btn-danger" onclick="fermerModal()" style="margin-top:20px;">
-      ❌ Fermer
-    </button>
-  </div>
-</div>
-
-<script>
-  let partieEnCours = null;
-  let joueursSelectionnes = [];
-  let boucleGeneree = [];
-  
-  async function configurerPartie(idPartie) {
-    partieEnCours = idPartie;
-    
-    // Récupérer les infos de la partie
-    const parties = await supabaseSelect('parties', `?id=eq.${idPartie}`);
-    document.getElementById('nomPartieConfig').textContent = `Partie : ${parties[0].nom_partie}`;
-    
-    // Récupérer tous les joueurs
-    const joueurs = await supabaseSelect('joueurs', '?statut_global=eq.actif');
-    
-    let html = '<div style="max-height:300px; overflow-y:auto;">';
-    joueurs.forEach(joueur => {
-      html += `
-        <label style="display:block; padding:10px; border:1px solid #ddd; margin-bottom:5px; cursor:pointer;">
-          <input type="checkbox" value="${joueur.id}" onchange="toggleJoueur(this, '${joueur.id}', '${joueur.pseudo}')">
-          ${joueur.pseudo} (${joueur.nom} ${joueur.prenom})
-        </label>
-      `;
-    });
-    html += '</div>';
-    
-    document.getElementById('listeJoueursConfig').innerHTML = html;
-    document.getElementById('modalConfig').style.display = 'block';
-  }
-  
-  function toggleJoueur(checkbox, id, pseudo) {
-    if (checkbox.checked) {
-      joueursSelectionnes.push({ id, pseudo });
-    } else {
-      joueursSelectionnes = joueursSelectionnes.filter(j => j.id !== id);
-    }
-  }
-  
-  async function genererBoucle() {
-    if (joueursSelectionnes.length < 3) {
-      alert('⚠️ Il faut au moins 3 joueurs pour créer une partie');
-      return;
-    }
-    
-    // Mélanger les joueurs
-    let joueursMelanges = [...joueursSelectionnes].sort(() => Math.random() - 0.5);
-    
-    // Récupérer tous les défis
-    const defis = await supabaseSelect('defis');
-    
-    // Créer la boucle
-    boucleGeneree = [];
-    for (let i = 0; i < joueursMelanges.length; i++) {
-      const tueur = joueursMelanges[i];
-      const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
-      const defi = defis[Math.floor(Math.random() * defis.length)];
-      
-      boucleGeneree.push({
-        tueur,
-        cible,
-        defi
-      });
-    }
-    
-    // Afficher la boucle
-    let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
-    boucleGeneree.forEach(item => {
-      html += `
-        <tr>
-          <td>${item.tueur.pseudo}</td>
-          <td>→</td>
-          <td>${item.cible.pseudo}</td>
-          <td>${item.defi.description}</td>
-        </tr>
-      `;
-    });
-    html += '</table>';
-    
-    document.getElementById('affichageBoucle').innerHTML = html;
-    document.getElementById('boucleSection').style.display = 'block';
-  }
-  
-async function lancerPartie() {
-    if (!confirm('🚀 Êtes-vous sûr de vouloir lancer la partie ? Les joueurs recevront leurs cibles.')) {
-      return;
-    }
-    
-    try {
-      // 1. Insérer tous les joueurs dans parties_joueurs avec leurs assignations
-      for (const item of boucleGeneree) {
-        await supabaseInsert('parties_joueurs', {
-          id_partie: partieEnCours,
-          id_joueur: item.tueur.id,
-          id_tueur: null, // Sera rempli plus tard si nécessaire
-          id_cible: item.cible.id,
-          id_defi: item.defi.id,
-          statut_joueur: 'vivant'
+        boucleGeneree.push({
+          tueur,
+          cible,
+          defi
         });
       }
       
-      // 2. Mettre à jour le statut de la partie
-      await supabaseUpdate('parties', 
-        { statut: 'lancee' }, 
-        `?id=eq.${partieEnCours}`
-      );
+      let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
+      boucleGeneree.forEach(item => {
+        html += `
+          <tr>
+            <td>${item.tueur.pseudo}</td>
+            <td>→</td>
+            <td>${item.cible.pseudo}</td>
+            <td>${item.defi.description}</td>
+          </tr>
+        `;
+      });
+      html += '</table>';
       
-      alert('✅ Partie lancée avec succès ! Les joueurs peuvent maintenant se connecter.');
-      
-      // Fermer le modal et recharger
-      fermerModal();
-      chargerParties();
-      
-    } catch (error) {
-      console.error('Erreur:', error);
-      alert('❌ Erreur lors du lancement de la partie');
+      document.getElementById('affichageBoucle').innerHTML = html;
+      document.getElementById('boucleSection').style.display = 'block';
     }
-  }
-  
-  function fermerModal() {
-    document.getElementById('modalConfig').style.display = 'none';
-    joueursSelectionnes = [];
-    boucleGeneree = [];
-    partieEnCours = null;
-  }
-</script>
-</body>
-</html>
-
-
-                                         
+    
+    async function lancerPartie() {
+      if (!confirm('🚀 Êtes-vous sûr de vouloir lancer la partie ? Les joueurs recevront leurs cibles.')) {
+        return;
+      }
+      
+      try {
+        for (const item of boucleGeneree) {
+          await supabaseInsert('parties_joueurs', {
+            id_partie: partieEnCours,
+            id_joueur: item.tueur.id,
+            id_tueur: null,
+            id_cible: item.cible.id,
+            id_defi: item.defi.id,
+            statut_joueur: 'vivant'
+          });
+        }
+        
+        await supabaseUpdate('parties', 
+          { statut: 'lancee' }, 
+          `?id=eq.${partieEnCours}`
+        );
+        
+        alert('✅ Partie lancée avec succès ! Les joueurs peuvent maintenant se connecter.');
+        
+        fermerModal();
+        chargerParties();
+        
+      } catch (error) {
+        console.error('Erreur:', error);
+        alert('❌ Erreur lors du lancement de la partie');
