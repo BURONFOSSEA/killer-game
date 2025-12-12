@@ -152,11 +152,11 @@
   </div>
   
   <div class="nav">
-    <button onclick="showSection('inscriptions')" class="active">📝 Inscriptions</button>
-    <button onclick="showSection('joueurs')">👥 Joueurs</button>
-    <button onclick="showSection('parties')">🎮 Parties</button>
-    <button onclick="showSection('defis')">💡 Défis</button>
-    <button onclick="showSection('kills')">⚔️ Kills</button>
+    <button onclick="showSection('inscriptions',this)" class="active">📝 Inscriptions</button>
+    <button onclick="showSection('joueurs',this)">👥 Joueurs</button>
+    <button onclick="showSection('parties',this)">🎮 Parties</button>
+    <button onclick="showSection('defis',this)">💡 Défis</button>
+    <button onclick="showSection('kills',this)">⚔️ Kills</button>
   </div>
   
   <div class="content">
@@ -235,12 +235,12 @@
 
   <script src="supabaseClient.js"></script>
   <script>
-    function showSection(sectionName) {
+    function showSection(sectionName,element) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
       
       document.getElementById(sectionName).classList.add('active');
-      event.target.classList.add('active');
+      element.classList.add('active');
       
       if (sectionName === 'inscriptions') chargerInscriptions();
       if (sectionName === 'joueurs') chargerJoueurs();
@@ -544,3 +544,8 @@
       } catch (error) {
         console.error('Erreur:', error);
         alert('❌ Erreur lors du lancement de la partie');
+      }
+         document.addEventListener('DOMContentLoaded', chargerInscriptions);
+    
+  </script>
+</body>
