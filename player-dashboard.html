@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Dashboard - Killer Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    
+    .status-card {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    
+    .status-vivant {
+      background: #28a745;
+      color: white;
+    }
+    
+    .status-mort {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .status-attente {
+      background: #ffc107;
+      color: #333;
+    }
+    
+    .info-section {
+      margin-bottom: 20px;
+    }
+    
+    .info-section h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    
+    .target-info {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .target-info p {
+      margin: 8px 0;
+      font-size: 16px;
+    }
+    
+    .challenge-box {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    
+    .challenge-box h4 {
+      color: #856404;
+      margin-bottom: 10px;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 10px;
+    }
+    
+    .btn-kill {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-kill:hover {
+      background: #c82333;
+      transform: scale(1.02);
+    }
+    
+    .btn-accept {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-accept:hover {
+      background: #218838;
+    }
+    
+    .btn-refuse {
+      background: #ffc107;
+      color: #333;
+    }
+    
+    .btn-refuse:hover {
+      background: #e0a800;
+    }
+    
+    .btn-logout {
+      background: #6c757d;
+      color: white;
+      padding: 10px;
+      font-size: 14px;
+    }
+    
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .alert-danger {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    
+    .alert-success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    
+    .alert-warning {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+    }
+    
+    #loading {
+      text-align: center;
+      padding: 40px;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Vérification de la connexion -->
+  <script>
+    if (!localStorage.getItem('joueurId')) {
+      window.location.href = 'player-login.html';
+    }
+  </script>
+
+  <div id="loading">
+    <h2>⏳ Chargement...</h2>
+  </div>
+
+  <div id="mainContent" class="container hidden">
+    <div class="header">
+      <h1>🎯 Killer Game</h1>
+      <p>Bienvenue <strong id="joueurPseudo"></strong></p>
+      <button class="btn btn-logout" onclick="deconnexion()">🚪 Se déconnecter</button>
+    </div>
+    
+    <!-- Alertes de notification -->
+    <div id="alertContainer"></div>
+    
+    <!-- Statut du joueur -->
+    <div class="status-card">
+      <div class="info-section">
+        <h3>📊 Votre statut</h3>
+        <span id="statutBadge" class="status-badge">Chargement...</span>
+      </div>
+      
+      <!-- Zone d'information cible (visible si vivant) -->
+      <div id="targetSection" class="info-section hidden">
+        <h3>🎯 Votre cible</h3>
+        <div class="target-info">
+          <p><strong>Nom :</strong> <span id="cibleNom"></span></p>
+          <p><strong>Prénom :</strong> <span id="ciblePrenom"></span></p>
+          <p><strong>Pseudo :</strong> <span id="ciblePseudo"></span></p>
+        </div>
+        
+        <div class="challenge-box">
+          <h4>💡 Votre défi</h4>
+          <p id="defiDescription"></p>
+        </div>
+        
+        <button id="btnDeclareKill" class="btn btn-kill" onclick="declarerKill()">
+          ⚔️ Déclarer un Kill
+        </button>
+      </div>
+      
+      <!-- Zone d'attente (partie pas encore lancée) -->
+      <div id="waitingSection" class="info-section hidden">
+        <div class="alert alert-warning">
+          ⏳ En attente du lancement de la partie par l'administrateur...
+        </div>
+      </div>
+      
+      <!-- Zone mort -->
+      <div id="deadSection" class="info-section hidden">
+        <div class="alert alert-danger">
+          💀 Vous avez été éliminé ! Merci d'avoir participé.
+        </div>
+      </div>
+      
+      <!-- Zone de réponse à une tentative de kill -->
+      <div id="killAlertSection" class="info-section hidden">
+        <div class="alert alert-danger">
+          <h3>⚠️ Vous êtes la cible d'un kill !</h3>
+          <p><strong id="tueurPseudo"></strong> prétend vous avoir éliminé.</p>
+          <p><strong>Défi :</strong> <span id="killDefi"></span></p>
+          <p style="margin-top: 15px;">Le défi a-t-il été réalisé ?</p>
+        </div>
+        <button class="btn btn-accept" onclick="accepterKill()">✅ Oui, accepter</button>
+        <button class="btn btn-refuse" onclick="refuserKill()">❌ Non, refuser</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="supabaseClient.js"></script>
+  <script>
+    // Variables globales
+    let joueurId = localStorage.getItem('joueurId');
+    let joueurPseudo = localStorage.getItem('joueurPseudo');
+    let partieJoueurData = null;
+    let killEnAttente = null;
+    
+    // Fonction de déconnexion
+    function deconnexion() {
+      localStorage.clear();
+      window.location.href = 'player-login.html';
+    }
+    
+    // Fonction principale de chargement
+    async function chargerDashboard() {
+      try {
+        // Afficher le pseudo
+        document.getElementById('joueurPseudo').textContent = joueurPseudo;
+        
+        // Récupérer les infos de la partie en cours du joueur
+        const partiesJoueur = await supabaseSelect('parties_joueurs', 
+          `?id_joueur=eq.${joueurId}&select=*,parties(*),joueurs!parties_joueurs_id_cible_fkey(nom,prenom,pseudo),defis(*)`
+        );
+        
+        if (partiesJoueur.length === 0) {
+          // Aucune partie en cours
+          document.getElementById('waitingSection').classList.remove('hidden');
+          document.getElementById('statutBadge').textContent = '⏳ En attente';
+          document.getElementById('statutBadge').className = 'status-badge status-attente';
+        } else {
+          partieJoueurData = partiesJoueur[0];
+          
+          // Vérifier si la partie est lancée
+          if (partieJoueurData.parties.statut !== 'lancee') {
+            document.getElementById('waitingSection').classList.remove('hidden');
+            document.getElementById('statutBadge').textContent = '⏳ En attente';
+            document.getElementById('statutBadge').className = 'status-badge status-attente';
+          } else {
+            // Partie lancée - vérifier le statut du joueur
+            if (partieJoueurData.statut_joueur === 'vivant') {
+              document.getElementById('statutBadge').textContent = '✅ Vivant';
+              document.getElementById('statutBadge').className = 'status-badge status-vivant';
+              document.getElementById('targetSection').classList.remove('hidden');
+              
+              // Afficher les infos de la cible
+              const cible = partieJoueurData.joueurs;
+              document.getElementById('cibleNom').textContent = cible.nom;
+              document.getElementById('ciblePrenom').textContent = cible.prenom;
+              document.getElementById('ciblePseudo').textContent = cible.pseudo;
+              document.getElementById('defiDescription').textContent = partieJoueurData.defis.description;
+              
+            } else if (partieJoueurData.statut_joueur === 'mort') {
+              document.getElementById('statutBadge').textContent = '💀 Éliminé';
+              document.getElementById('statutBadge').className = 'status-badge status-mort';
+              document.getElementById('deadSection').classList.remove('hidden');
+            }
+          }
+        }
+        
+        // Vérifier s'il y a un kill en attente contre ce joueur
+        await verifierKillEnAttente();
+        
+        // Masquer le loading et afficher le contenu
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('mainContent').classList.remove('hidden');
+        
+      } catch (error) {
+        console.error('Erreur:', error);
+        alert('❌ Erreur de chargement');
+      }
+    }
+    
+    // Vérifier si quelqu'un a déclaré un kill contre ce joueur
+    async function verifierKillEnAttente() {
+      const kills = await supabaseSelect('kills_en_attente', 
+        `?id_cible=eq.${joueurId}&statut_kill=eq.en_attente`
+      );
+      
+      if (kills.length > 0) {
+        killEnAttente = kills[0];
+        
+        // Récupérer les infos du tueur
+        const tueur = await supabaseSelect('joueurs', `?id=eq.${killEnAttente.id_tueur}`);
+        const defi = await supabaseSelect('defis', `?id=eq.${killEnAttente.id_defi}`);
+        
+        // Afficher l'alerte de kill
+        document.getElementById('killAlertSection').classList.remove('hidden');
+        document.getElementById('tueurPseudo').textContent = tueur[0].pseudo;
+        document.getElementById('killDefi').textContent = defi[0].description;
+        
+        // Masquer le bouton de déclaration de kill
+        document.getElementById('btnDeclareKill').classList.add('hidden');
+      }
+    }
+    
+    // Déclarer un kill
+    async function declarerKill() {
+      if (!confirm('⚔️ Êtes-vous sûr d\'avoir réalisé le défi et de vouloir déclarer ce kill ?')) {
+        return;
+      }
+      
+      try {
+        // Créer une entrée dans kills_en_attente
+        await supabaseInsert('kills_en_attente', {
+          id_partie: partieJoueurData.id_partie,
+          id_tueur: joueurId,
+          id_cible: partieJoueurData.id_cible,
+          id_defi: partieJoueurData.id_defi,
+          statut_kill: 'en_attente'
+        });
+        
+        afficherAlerte('success', '✅ Kill déclaré ! En attente de confirmation de votre cible.');
+        document.getElementById('btnDeclareKill').disabled = true;
+        document.getElementById('btnDeclareKill').textContent = '⏳ Kill déclaré - En attente';
+        
+      } catch (error) {
+        afficherAlerte('danger', '❌ Erreur lors de la déclaration du kill');
+      }
+    }
+    
+    // Accepter un kill
+    async function accepterKill() {
+      try {
+        // Mettre à jour le statut du kill
+        await supabaseUpdate('kills_en_attente', 
+          { statut_kill: 'accepte' }, 
+          `?id=eq.${killEnAttente.id}`
+        );
+        
+        // Mettre à jour le statut du joueur (il est mort)
+        await supabaseUpdate('parties_joueurs', 
+          { statut_joueur: 'mort' }, 
+          `?id_joueur=eq.${joueurId}&id_partie=eq.${killEnAttente.id_partie}`
+        );
+        
+        afficherAlerte('danger', '💀 Vous avez accepté le kill. Vous êtes éliminé !');
+        
+        // Recharger le dashboard après 2 secondes
+        setTimeout(() => {
+          location.reload();
+        }, 2000);
+        
+      } catch (error) {
+        afficherAlerte('danger', '❌ Erreur lors de l\'acceptation du kill');
+      }
+    }
+    
+    // Refuser un kill
+    async function refuserKill() {
+      if (!confirm('⚠️ Êtes-vous sûr de vouloir contester ce kill ? L\'admin devra trancher.')) {
+        return;
+      }
+      
+      try {
+        // Mettre à jour le statut du kill en "contesté"
+        await supabaseUpdate('kills_en_attente', 
+          { statut_kill: 'conteste' }, 
+          `?id=eq.${killEnAttente.id}`
+        );
+        
+        afficherAlerte('warning', '⚠️ Kill contesté ! L\'administrateur va examiner la situation.');
+        
+        // Recharger le dashboard après 2 secondes
+        setTimeout(() => {
+          location.reload();
+        }, 2000);
+        
+      } catch (error) {
+        afficherAlerte('danger', '❌ Erreur lors du refus du kill');
+      }
+    }
+    
+    // Afficher une alerte
+    function afficherAlerte(type, message) {
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.textContent = message;
+      
+      const container = document.getElementById('alertContainer');
+      container.appendChild(alertDiv);
+      
+      // Retirer l'alerte après 5 secondes
+      setTimeout(() => {
+        alertDiv.remove();
+      }, 5000);
+    }
+    
+    // Auto-refresh toutes les 10 secondes pour vérifier les nouveaux kills
+    setInterval(verifierKillEnAttente, 10000);
+    
+    // Charger le dashboard au démarrage
+    chargerDashboard();
+  </script>
+</body>
+</html>
