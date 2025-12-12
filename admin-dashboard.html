@@ -400,46 +400,58 @@
       document.getElementById('defisTable').innerHTML = html;
     }
     
-    // GESTION DES KILLS
-    async function chargerKills() {
-      const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
-      
-      let html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
-      
-      if (kills.length === 0) {
-        html = '<p>Aucun kill contesté pour le moment.</p>';
-      } else {
-        for (const kill of kills) {
-          // Récupérer les infos du tueur
-          const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
-          // Récupérer les infos de la cible
-          const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
-          // Récupérer le défi
-          const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
-          
-          html += `
-            <tr>
-              <td>${tueur[0].pseudo}</td>
-              <td>${cible[0].pseudo}</td>
-              <td>${defi[0].description}</td>
-              <td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td>
-              <td>
-                <button class="btn btn-success" onclick="validerKill('${kill.id}')">✅ Valider</button>
-                <button class="btn btn-danger" onclick="invaliderKill('${kill.id}')">❌ Invalider</button>
-              </td>
-            </tr>
-          `;
-        }
-        html += '</table>';
-      }
-      
-      document.getElementById('killsTable').innerHTML = html;
-    }
+// GESTION DES KILLS
+async function chargerKills() {
+  const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
+  
+  let html = '';
+  
+  if (kills.length === 0) {
+    html = '<p>Aucun kill contesté pour le moment.</p>';
+  } else {
+    html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
     
-    async function validerKill(idKill) {
-      await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
-      alert('✅ Kill validé par l\'admin !');
-      chargerKills();
+    for (const kill of kills) {
+      // Récupérer les infos du tueur
+      const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+      // Récupérer les infos de la cible
+      const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+      // Récupérer le défi
+      const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+      
+      if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
+        html += `
+          <tr>
+            <td>${tueur[0].pseudo}</td>
+            <td>${cible[0].pseudo}</td>
+            <td>${defi[0].description}</td>
+            <td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td>
+            <td>
+              <button class="btn btn-success" onclick="validerKill('${kill.id}')">✅ Valider</button>
+              <button class="btn btn-danger" onclick="invaliderKill('${kill.id}')">❌ Invalider</button>
+            </td>
+          </tr>
+        `;
+      }
+    }
+    html += '</table>';
+  }
+  
+  document.getElementById('killsTable').innerHTML = html;
+}
+
+async function validerKill(idKill) {
+  await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
+  alert('✅ Kill validé par l\'admin !');
+  chargerKills();
+  // TODO: Mettre à jour le statut du joueur tué et assigner nouvelle cible
+}
+
+async function invaliderKill(idKill) {
+  await supabaseUpdate('kills_en_attente', { statut_kill: 'refuse' }, `?id=eq.${idKill}`);
+  alert('❌ Kill invalidé');
+  chargerKills();
+}
       // TODO: Mettre à jour le statut du joueur tué et assigner nouvelle cible
     }
     
