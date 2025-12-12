@@ -436,6 +436,159 @@
     // Charger les inscriptions au démarrage
     chargerInscriptions();
   </script>
+<!-- Modal de configuration de partie -->
+<div id="modalConfig" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000;">
+  <div style="background:white; max-width:800px; margin:50px auto; padding:30px; border-radius:10px; max-height:80vh; overflow-y:auto;">
+    <h2>⚙️ Configuration de la partie</h2>
+    <p id="nomPartieConfig" style="color:#666; margin-bottom:20px;"></p>
+    
+    <h3>1️⃣ Sélectionner les joueurs</h3>
+    <div id="listeJoueursConfig"></div>
+    
+    <button class="btn btn-primary" onclick="genererBoucle()" style="margin-top:20px;">
+      🔄 Générer la boucle Tueur/Cible
+    </button>
+    
+    <div id="boucleSection" style="display:none; margin-top:30px;">
+      <h3>2️⃣ Boucle Tueur → Cible → Défi</h3>
+      <div id="affichageBoucle"></div>
+      
+      <button class="btn btn-success" onclick="lancerPartie()" style="margin-top:20px;">
+        🚀 Lancer la partie !
+      </button>
+    </div>
+    
+    <button class="btn btn-danger" onclick="fermerModal()" style="margin-top:20px;">
+      ❌ Fermer
+    </button>
+  </div>
+</div>
+
+<script>
+  let partieEnCours = null;
+  let joueursSelectionnes = [];
+  let boucleGeneree = [];
+  
+  async function configurerPartie(idPartie) {
+    partieEnCours = idPartie;
+    
+    // Récupérer les infos de la partie
+    const parties = await supabaseSelect('parties', `?id=eq.${idPartie}`);
+    document.getElementById('nomPartieConfig').textContent = `Partie : ${parties[0].nom_partie}`;
+    
+    // Récupérer tous les joueurs
+    const joueurs = await supabaseSelect('joueurs', '?statut_global=eq.actif');
+    
+    let html = '<div style="max-height:300px; overflow-y:auto;">';
+    joueurs.forEach(joueur => {
+      html += `
+        <label style="display:block; padding:10px; border:1px solid #ddd; margin-bottom:5px; cursor:pointer;">
+          <input type="checkbox" value="${joueur.id}" onchange="toggleJoueur(this, '${joueur.id}', '${joueur.pseudo}')">
+          ${joueur.pseudo} (${joueur.nom} ${joueur.prenom})
+        </label>
+      `;
+    });
+    html += '</div>';
+    
+    document.getElementById('listeJoueursConfig').innerHTML = html;
+    document.getElementById('modalConfig').style.display = 'block';
+  }
+  
+  function toggleJoueur(checkbox, id, pseudo) {
+    if (checkbox.checked) {
+      joueursSelectionnes.push({ id, pseudo });
+    } else {
+      joueursSelectionnes = joueursSelectionnes.filter(j => j.id !== id);
+    }
+  }
+  
+  async function genererBoucle() {
+    if (joueursSelectionnes.length < 3) {
+      alert('⚠️ Il faut au moins 3 joueurs pour créer une partie');
+      return;
+    }
+    
+    // Mélanger les joueurs
+    let joueursMelanges = [...joueursSelectionnes].sort(() => Math.random() - 0.5);
+    
+    // Récupérer tous les défis
+    const defis = await supabaseSelect('defis');
+    
+    // Créer la boucle
+    boucleGeneree = [];
+    for (let i = 0; i < joueursMelanges.length; i++) {
+      const tueur = joueursMelanges[i];
+      const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
+      const defi = defis[Math.floor(Math.random() * defis.length)];
+      
+      boucleGeneree.push({
+        tueur,
+        cible,
+        defi
+      });
+    }
+    
+    // Afficher la boucle
+    let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
+    boucleGeneree.forEach(item => {
+      html += `
+        <tr>
+          <td>${item.tueur.pseudo}</td>
+          <td>→</td>
+          <td>${item.cible.pseudo}</td>
+          <td>${item.defi.description}</td>
+        </tr>
+      `;
+    });
+    html += '</table>';
+    
+    document.getElementById('affichageBoucle').innerHTML = html;
+    document.getElementById('boucleSection').style.display = 'block';
+  }
+  
+async function lancerPartie() {
+    if (!confirm('🚀 Êtes-vous sûr de vouloir lancer la partie ? Les joueurs recevront leurs cibles.')) {
+      return;
+    }
+    
+    try {
+      // 1. Insérer tous les joueurs dans parties_joueurs avec leurs assignations
+      for (const item of boucleGeneree) {
+        await supabaseInsert('parties_joueurs', {
+          id_partie: partieEnCours,
+          id_joueur: item.tueur.id,
+          id_tueur: null, // Sera rempli plus tard si nécessaire
+          id_cible: item.cible.id,
+          id_defi: item.defi.id,
+          statut_joueur: 'vivant'
+        });
+      }
+      
+      // 2. Mettre à jour le statut de la partie
+      await supabaseUpdate('parties', 
+        { statut: 'lancee' }, 
+        `?id=eq.${partieEnCours}`
+      );
+      
+      alert('✅ Partie lancée avec succès ! Les joueurs peuvent maintenant se connecter.');
+      
+      // Fermer le modal et recharger
+      fermerModal();
+      chargerParties();
+      
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors du lancement de la partie');
+    }
+  }
+  
+  function fermerModal() {
+    document.getElementById('modalConfig').style.display = 'none';
+    joueursSelectionnes = [];
+    boucleGeneree = [];
+    partieEnCours = null;
+  }
+</script>
 </body>
 </html>
 
