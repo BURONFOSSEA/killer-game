@@ -184,7 +184,18 @@
       border: 1px solid #ffeaa7;
       color: #856404;
     }
+     .historique-item {
+      background: #f8f9fa;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border-left: 4px solid #28a745;
+    }
     
+    .historique-item p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
     #loading {
       text-align: center;
       padding: 40px;
@@ -258,7 +269,11 @@
           💀 Vous avez été éliminé ! Merci d'avoir participé.
         </div>
       </div>
-      
+        <!-- Zone Historique -->
+      <div id="historiqueSection" class="info-section hidden">
+        <h3>📜 Votre historique de kills</h3>
+        <div id="historiqueContent"></div>
+      </div>
       <!-- Zone de réponse à une tentative de kill -->
       <div id="killAlertSection" class="info-section hidden">
         <div class="alert alert-danger">
@@ -275,6 +290,22 @@
 
   <script src="supabaseClient.js"></script>
   <script>
+    // Demander la permission pour les notifications
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    function envoyerNotification(titre, message) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(titre, { 
+          body: message,
+          icon: '🎯', // Vous pouvez mettre une URL d'image
+          vibrate: [200, 100, 200]
+        });
+      }
+    }
+  </script>
+  <script>
     // Variables globales
     let joueurId = localStorage.getItem('joueurId');
     let joueurPseudo = localStorage.getItem('joueurPseudo');
@@ -286,7 +317,30 @@
       localStorage.clear();
       window.location.href = 'player-login.html';
     }
-    
+        async function afficherHistorique() {
+      if (!partieJoueurData || !partieJoueurData.historique_kills) return;
+      
+      const historique = partieJoueurData.historique_kills || [];
+      
+      if (historique.length === 0) {
+        document.getElementById('historiqueContent').innerHTML = '<p style="color:#999;">Aucun kill pour le moment</p>';
+        return;
+      }
+      
+      let html = '';
+      historique.forEach(kill => {
+        const date = new Date(kill.date).toLocaleString('fr-FR');
+        html += `
+          <div class="historique-item">
+            <p><strong>✅ ${kill.cible}</strong></p>
+            <p style="color:#666;">🕐 ${date}</p>
+          </div>
+        `;
+      });
+      
+      document.getElementById('historiqueContent').innerHTML = html;
+      document.getElementById('historiqueSection').classList.remove('hidden');
+    }
     // Fonction principale de chargement
     async function chargerDashboard() {
       try {
@@ -305,6 +359,8 @@
           document.getElementById('statutBadge').className = 'status-badge status-attente';
         } else {
           partieJoueurData = partiesJoueur[0];
+
+          afficherHistorique();
           
           // Vérifier si la partie est lancée
           if (partieJoueurData.parties.statut !== 'lancee') {
@@ -354,7 +410,7 @@
       
       if (kills.length > 0) {
         killEnAttente = kills[0];
-        
+        envoyerNotification('⚠️ Vous êtes visé !', 'Quelqu\'un prétend vous avoir éliminé. Vérifiez votre dashboard !');
         // Récupérer les infos du tueur
         const tueur = await supabaseSelect('joueurs', `?id=eq.${killEnAttente.id_tueur}`);
         const defi = await supabaseSelect('defis', `?id=eq.${killEnAttente.id_defi}`);
