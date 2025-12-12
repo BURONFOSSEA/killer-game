@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Killer Game - Accueil</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      padding: 50px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 500px;
+      text-align: center;
+    }
+    
+    h1 {
+      color: #667eea;
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    
+    p {
+      color: #666;
+      font-size: 18px;
+      margin-bottom: 40px;
+    }
+    
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      margin-bottom: 15px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+      color: white;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn-player {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .btn-admin {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .btn-register {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Killer Game</h1>
+    <p>Bienvenue dans le jeu du Killer !<br>Éliminez votre cible en accomplissant votre défi.</p>
+    
+    <a href="player-login.html" class="btn btn-player">
+      👤 Connexion Joueur
+    </a>
+    
+    <a href="admin-login.html" class="btn btn-admin">
+      🔒 Connexion Admin
+    </a>
+    
+    <a href="inscription.html" class="btn btn-register">
+      📝 Première visite ? S'inscrire
+    </a>
+  </div>
+</body>
+</html>
