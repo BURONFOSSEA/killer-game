@@ -644,8 +644,51 @@ html += `
                                dateDeclaration.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
             
             html += `
+              <tr>
+                <td>${tueur[0].pseudo}</td>
+                <td>${cible[0].pseudo}</td>
+                <td>${defi[0].description}</td>
+                <td>${dateFormatee}</td>
+                <td>
+                  <button class="btn btn-success" onclick="validerKillDepuisDetails('${kill.id}', '${idPartie}')">✅ Valider</button>
+                  <button class="btn btn-danger" onclick="invaliderKillDepuisDetails('${kill.id}', '${idPartie}')">❌ Invalider</button>
+                </td>
+              </tr>
+            `;
+          }
+        }
+        
+        html += '</table>';
+        document.getElementById('killsEnAttenteDetails').innerHTML = html;
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('killsEnAttenteDetails').innerHTML = 
+          '<p style="color:red;">Erreur lors du chargement des kills</p>';
+      }
+    }
+
+    // Valider un kill depuis les détails de la partie
+    async function validerKillDepuisDetails(idKill, idPartie) {
+      await validerKill(idKill);
+      // Recharger les détails de la partie
+      await chargerKillsEnAttentePartie(idPartie);
+      await chargerBouclePartie(idPartie);
+    }
+
+    // Invalider un kill depuis les détails de la partie
+    async function invaliderKillDepuisDetails(idKill, idPartie) {
+      await invaliderKill(idKill);
+      // Recharger les détails de la partie
+      await chargerKillsEnAttentePartie(idPartie);
+    }
+
+    // Fermer le modal des détails
+    function fermerModalDetails() {
+      document.getElementById('modalDetails').style.display = 'none';
+    }
 
     // Charger les inscriptions au démarrage de la page
     document.addEventListener('DOMContentLoaded', chargerInscriptions);
   </script>
 </body>
+</html>
