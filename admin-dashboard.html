@@ -686,3 +686,87 @@ document.getElementById('modalDetails').style.display = 'block';
               <td>${defi.description}</td>
               <td>${statutBadge}</td>
 </html>
+              <td>${statutBadge}</td>
+              <div style="max-height:200px; overflow-y:auto;">
+                <table style="width:100%; font-size:14px;">
+                  <tr style="background:#e9ecef;">
+                    <th style="padding:8px;">Victime</th>
+                    <th style="padding:8px;">Défi</th>
+                    <th style="padding:8px;">Date</th>
+                    <th style="padding:8px;">Statut</th>
+                  </tr>
+          `;
+          joueurData.kills.forEach(kill => {
+            const statutBadge = kill.statut === 'valide' ?
+              '<span style="background:#007bff;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Admin</span>' :
+              '<span style="background:#28a745;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Accepté</span>';
+            html += `
+              <tr>
+                <td style="padding:8px;">${kill.cible} <small style="color:#666;">(${kill.cibleNomComplet})</small></td>
+                <td style="padding:8px;"><small>${kill.defi}</small></td>
+                <td style="padding:8px;"><small>${kill.date}</small></td>
+                <td style="padding:8px;">${statutBadge}</td>
+              </tr>
+            `;
+          });
+          html += `
+                </table>
+              </div>
+            </div>
+          `;
+        });
+        document.getElementById('historiqueKillsDetails').innerHTML = html;
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('historiqueKillsDetails').innerHTML =
+          '<p style="color:red;">Erreur lors du chargement de l\'historique des kills</p>';
+      }
+    }
+
+    // Valider un kill depuis les détails de la partie
+    async function validerKillDepuisDetails(idKill, idPartie) {
+      await validerKill(idKill);
+      await chargerKillsEnAttentePartie(idPartie);
+      await chargerBouclePartie(idPartie);
+      await chargerHistoriqueKills(idPartie);
+    }
+
+    // Invalider un kill depuis les détails de la partie
+    async function invaliderKillDepuisDetails(idKill, idPartie) {
+      await invaliderKill(idKill);
+      await chargerKillsEnAttentePartie(idPartie);
+    }
+
+    // Fermer le modal des détails
+    function fermerModalDetails() {
+      document.getElementById('modalDetails').style.display = 'none';
+      localStorage.removeItem('adminModalDetailsOpen');
+      localStorage.removeItem('adminModalDetailsPartie');
+      localStorage.removeItem('adminModalDetailsNom');
+    }
+
+    // Charger la section active au démarrage de la page
+    document.addEventListener('DOMContentLoaded', function() {
+      const sectionActive = localStorage.getItem('adminActiveSection') || 'inscriptions';
+      const boutonActif = document.querySelector(`button[onclick*="${sectionActive}"]`);
+      
+      if (boutonActif) {
+        showSection(sectionActive, boutonActif);
+      } else {
+        chargerInscriptions();
+      }
+
+      const modalOuvert = localStorage.getItem('adminModalDetailsOpen');
+      if (modalOuvert === 'true') {
+        const idPartie = localStorage.getItem('adminModalDetailsPartie');
+        const nomPartie = localStorage.getItem('adminModalDetailsNom');
+        if (idPartie && nomPartie) {
+          setTimeout(() => {
+            voirDetailsPartie(idPartie, nomPartie);
+          }, 500);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
