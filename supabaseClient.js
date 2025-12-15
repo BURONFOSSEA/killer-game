@@ -39,3 +39,20 @@ async function supabaseSelect(table, filter = '') {
 async function supabaseUpdate(table, data, filter) {
   return await supabaseQuery(table, 'PATCH', data, filter);
 }
+// Fonction pour supprimer des données
+async function supabaseDelete(table, filter) {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}${filter}`, {
+        method: 'DELETE',
+        headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Erreur suppression: ${response.status}`);
+    }
+
+    return true;
+}
