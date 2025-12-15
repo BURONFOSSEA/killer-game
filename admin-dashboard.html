@@ -296,28 +296,29 @@ document.getElementById('nomPartie').value = '';
 chargerParties();
 }
 async function chargerParties() {
-const parties = await supabaseSelect('parties');
-let html = '<table><tr><th>Nom de la partie</th><th>Statut</th><th>Date</th><th>Actions</th></tr>';
-parties.forEach(partie => {
-html += `
-<tr>
-<td>${partie.nom_partie}</td>
-<td>
-${partie.statut === 'terminee' ?
-'<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;">🏆 Terminée</span>' :
-partie.statut
-}
-</td>
-<td>${new Date(partie.created_at).toLocaleDateString('fr-FR')}</td>
-<td>
-${partie.statut === 'creee' ? `<button class="btn btn-primary" onclick="configurerPartie('${partie.id}')">⚙️ Configurer</button>` : ''}
-${partie.statut === 'lancee' ? `<button class="btn btn-success" onclick="voirDetailsPartie('${partie.id}', '${partie.nom_partie}')">👁️ Voir détails</button>` : ''}
-</td>
-</tr>
-`;
-});
-html += '</table>';
-document.getElementById('partiesTable').innerHTML = html;
+    const parties = await supabaseSelect('parties');
+    let html = '<table><tr><th>Nom de la partie</th><th>Statut</th><th>Date</th><th>Actions</th></tr>';
+    parties.forEach(partie => {
+        html += `
+        <tr>
+            <td>${partie.nom_partie}</td>
+            <td>
+                ${partie.statut === 'terminee' ?
+                    '<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;">🏆 Terminée</span>' :
+                    partie.statut
+                }
+            </td>
+            <td>${new Date(partie.created_at).toLocaleDateString('fr-FR')}</td>
+            <td>
+                ${partie.statut === 'creee' ? `<button class="btn btn-primary" onclick="configurerPartie('${partie.id}')">⚙️ Configurer</button>` : ''}
+                ${partie.statut === 'lancee' ? `<button class="btn btn-success" onclick="voirDetailsPartie('${partie.id}', '${partie.nom_partie}')">👁️ Voir détails</button>` : ''}
+                <button class="btn btn-danger" onclick="supprimerPartie('${partie.id}', '${partie.nom_partie}')" style="margin-left: 5px;">🗑️ Supprimer</button>
+            </td>
+        </tr>
+        `;
+    });
+    html += '</table>';
+    document.getElementById('partiesTable').innerHTML = html;
 }
 async function ajouterDefi() {
 const description = document.getElementById('nouveauDefi').value;
@@ -553,55 +554,64 @@ document.getElementById('modalDetails').style.display = 'block';
 }
 // Charger la boucle des joueurs pour une partie
 async function chargerBouclePartie(idPartie) {
-try {
-const partiesJoueurs = await supabaseSelect('parties_joueurs',
-`?id_partie=eq.${idPartie}&select=*,joueurs!parties_joueurs_id_joueur_fkey(nom,prenom,pseudo),cibles:joueurs!parties_joueurs_id_cible_fkey(nom,prenom,pseudo),defis(*)`
-);
-let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th><th>Statut</th></tr>';
-partiesJoueurs.forEach(pj => {
-const tueur = pj.joueurs;
-const cible = pj.cibles;
-const defi = pj.defis;
-const statutBadge = pj.statut_joueur === 'vivant' ?
-'<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">✅ Vivant</span>' :
-'<span style="background:#dc3545;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">💀 Mort</span>';
-html += `
-<tr>
-<td>${tueur.pseudo} (${tueur.nom} ${tueur.prenom})</td>
-<td>→</td>
-<td>${cible.pseudo} (${cible.nom} ${cible.prenom})</td>
-<td>${defi.description}</td>
-<td>${statutBadge}</td>
-</tr>
-`;
-});
-html += '</table>';
-// Vérifier si la partie est terminée
-const joueursVivants = partiesJoueurs.filter(pj => pj.statut_joueur === 'vivant');
-if (joueursVivants.length === 1) {
-// Il ne reste qu'un survivant = partie terminée
-const gagnant = joueursVivants[0].joueurs;
-html += `
-<div style="background:#d4edda; border:2px solid #28a745; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
-<h3 style="color:#28a745; margin-bottom:15px;">🏆 PARTIE TERMINÉE ! 🏆</h3>
-<p style="font-size:18px; margin-bottom:10px;"><strong>Gagnant : ${gagnant.pseudo}</strong></p>
-<p style="color:#666;">(${gagnant.nom} ${gagnant.prenom})</p>
-<div style="margin-top:15px; font-size:30px;">🎉 👑 🎉</div>
-</div>
-`;
-} else if (joueursVivants.length === 0) {
-html += `
-<div style="background:#f8d7da; border:2px solid #dc3545; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
-<h3 style="color:#dc3545;">⚠️ ANOMALIE DÉTECTÉE</h3>
-<p>Aucun joueur vivant dans cette partie. Vérifiez les données.</p>
-</div>
-`;
-}
-document.getElementById('boucleDetails').innerHTML = html;
-} catch (error) {
-console.error('Erreur:', error);
-document.getElementById('boucleDetails').innerHTML = '<p style="color:red;">Erreur lors du chargement de la boucle</p>';
-}
+    try {
+        const partiesJoueurs = await supabaseSelect('parties_joueurs',
+            `?id_partie=eq.${idPartie}&select=*,joueurs!parties_joueurs_id_joueur_fkey(nom,prenom,pseudo),cibles:joueurs!parties_joueurs_id_cible_fkey(nom,prenom,pseudo),defis(*)`
+        );
+
+        let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th><th>Statut</th><th>Actions</th></tr>';
+        partiesJoueurs.forEach(pj => {
+            const tueur = pj.joueurs;
+            const cible = pj.cibles;
+            const defi = pj.defis;
+            const statutBadge = pj.statut_joueur === 'vivant' ?
+                '<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">✅ Vivant</span>' :
+                '<span style="background:#dc3545;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">💀 Mort</span>';
+            
+            html += `
+            <tr>
+                <td>${tueur.pseudo} (${tueur.nom} ${tueur.prenom})</td>
+                <td>→</td>
+                <td>${cible.pseudo} (${cible.nom} ${cible.prenom})</td>
+                <td>${defi.description}</td>
+                <td>${statutBadge}</td>
+                <td>
+                    ${pj.statut_joueur === 'vivant' ? 
+                        `<button class="btn btn-danger" onclick="eliminerJoueur('${pj.id_joueur}', '${idPartie}', '${tueur.pseudo}')" style="font-size:12px; padding:4px 8px;">💀 Éliminer</button>` 
+                        : '<span style="color:#666; font-size:12px;">Déjà éliminé</span>'
+                    }
+                </td>
+            </tr>
+            `;
+        });
+        html += '</table>';
+
+        // Vérifier si la partie est terminée
+        const joueursVivants = partiesJoueurs.filter(pj => pj.statut_joueur === 'vivant');
+        if (joueursVivants.length === 1) {
+            const gagnant = joueursVivants[0].joueurs;
+            html += `
+            <div style="background:#d4edda; border:2px solid #28a745; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
+                <h3 style="color:#28a745; margin-bottom:15px;">🏆 PARTIE TERMINÉE ! 🏆</h3>
+                <p style="font-size:18px; margin-bottom:10px;"><strong>Gagnant : ${gagnant.pseudo}</strong></p>
+                <p style="color:#666;">(${gagnant.nom} ${gagnant.prenom})</p>
+                <div style="margin-top:15px; font-size:30px;">🎉 👑 🎉</div>
+            </div>
+            `;
+        } else if (joueursVivants.length === 0) {
+            html += `
+            <div style="background:#f8d7da; border:2px solid #dc3545; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
+                <h3 style="color:#dc3545;">⚠️ ANOMALIE DÉTECTÉE</h3>
+                <p>Aucun joueur vivant dans cette partie. Vérifiez les données.</p>
+            </div>
+            `;
+        }
+
+        document.getElementById('boucleDetails').innerHTML = html;
+    } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('boucleDetails').innerHTML = '<p style="color:red;">Erreur lors du chargement de la boucle</p>';
+    }
 }
 // Charger les kills en attente pour une partie
 async function chargerKillsEnAttentePartie(idPartie) {
@@ -736,6 +746,108 @@ voirDetailsPartie(idPartie, nomPartie);
 }
 }
 });
+// Supprimer une partie
+async function supprimerPartie(idPartie, nomPartie) {
+    if (!confirm(`🗑️ Êtes-vous sûr de vouloir supprimer définitivement la partie "${nomPartie}" ?\n\n⚠️ Cette action supprimera :\n- La partie\n- Tous les joueurs associés\n- Tous les kills de cette partie\n\nCette action est irréversible !`)) {
+        return;
+    }
+
+    try {
+        // Supprimer d'abord les kills associés
+        await supabaseDelete('kills_en_attente', `?id_partie=eq.${idPartie}`);
+        
+        // Supprimer les joueurs de la partie
+        await supabaseDelete('parties_joueurs', `?id_partie=eq.${idPartie}`);
+        
+        // Supprimer la partie
+        await supabaseDelete('parties', `?id=eq.${idPartie}`);
+        
+        alert('✅ Partie supprimée avec succès !');
+        chargerParties();
+    } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+        alert('❌ Erreur lors de la suppression de la partie');
+    }
+}
+
+// Éliminer un joueur manuellement
+async function eliminerJoueur(idJoueur, idPartie, pseudoJoueur) {
+    if (!confirm(`💀 Êtes-vous sûr de vouloir éliminer "${pseudoJoueur}" de la partie ?\n\nLe joueur sera marqué comme mort et sa cible sera transférée à son tueur.`)) {
+        return;
+    }
+
+    try {
+        // 1. Récupérer les infos du joueur à éliminer
+        const joueurAEliminer = await supabaseSelect('parties_joueurs', 
+            `?id_joueur=eq.${idJoueur}&id_partie=eq.${idPartie}`
+        );
+        
+        if (joueurAEliminer.length === 0) {
+            alert('❌ Joueur non trouvé dans cette partie');
+            return;
+        }
+
+        const cibleDuJoueurElimine = joueurAEliminer[0].id_cible;
+        const defiDuJoueurElimine = joueurAEliminer[0].id_defi;
+
+        // 2. Trouver qui avait ce joueur comme cible (son tueur)
+        const tueurDuJoueur = await supabaseSelect('parties_joueurs',
+            `?id_cible=eq.${idJoueur}&id_partie=eq.${idPartie}&statut_joueur=eq.vivant`
+        );
+
+        // 3. Marquer le joueur comme mort
+        await supabaseUpdate('parties_joueurs',
+            { statut_joueur: 'mort' },
+            `?id_joueur=eq.${idJoueur}&id_partie=eq.${idPartie}`
+        );
+
+        // 4. Si le joueur avait un tueur, lui donner la cible du joueur éliminé
+        if (tueurDuJoueur.length > 0) {
+            await supabaseUpdate('parties_joueurs',
+                { 
+                    id_cible: cibleDuJoueurElimine,
+                    id_defi: defiDuJoueurElimine
+                },
+                `?id_joueur=eq.${tueurDuJoueur[0].id_joueur}&id_partie=eq.${idPartie}`
+            );
+
+            // 5. Mettre à jour l'historique du tueur
+            let historique = tueurDuJoueur[0].historique_kills || [];
+            historique.push({
+                cible: pseudoJoueur,
+                date: new Date().toISOString(),
+                type: 'elimination_admin'
+            });
+
+            await supabaseUpdate('parties_joueurs',
+                { historique_kills: historique },
+                `?id_joueur=eq.${tueurDuJoueur[0].id_joueur}&id_partie=eq.${idPartie}`
+            );
+        }
+
+        // 6. Vérifier si la partie est terminée
+        const joueursVivants = await supabaseSelect('parties_joueurs',
+            `?id_partie=eq.${idPartie}&statut_joueur=eq.vivant`
+        );
+
+        if (joueursVivants.length === 1) {
+            // Marquer la partie comme terminée
+            await supabaseUpdate('parties',
+                { statut: 'terminee' },
+                `?id=eq.${idPartie}`
+            );
+        }
+
+        alert(`✅ ${pseudoJoueur} a été éliminé de la partie !`);
+        
+        // Recharger les détails de la partie
+        await chargerBouclePartie(idPartie);
+
+    } catch (error) {
+        console.error('Erreur lors de l\'élimination:', error);
+        alert('❌ Erreur lors de l\'élimination du joueur');
+    }
+}
 </script>
 </body>
 </html>
