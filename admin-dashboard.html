@@ -359,7 +359,12 @@
 html += `
   <tr>
     <td>${partie.nom_partie}</td>
-    <td>${partie.statut}</td>
+   <td>
+      ${partie.statut === 'terminee' ? 
+        '<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;">🏆 Terminée</span>' : 
+        partie.statut
+      }
+    </td>
     <td>${new Date(partie.created_at).toLocaleDateString('fr-FR')}</td>
     <td>
       ${partie.statut === 'creee' ? `<button class="btn btn-primary" onclick="configurerPartie('${partie.id}')">⚙️ Configurer</button>` : ''}
@@ -678,7 +683,30 @@ async function invaliderKill(idKill) {
           `;
         });
         
-        html += '</table>';
+       html += '</table>';
+        
+        // Vérifier si la partie est terminée
+        const joueursVivants = partiesJoueurs.filter(pj => pj.statut_joueur === 'vivant');
+        if (joueursVivants.length === 1) {
+          // Il ne reste qu'un survivant = partie terminée
+          const gagnant = joueursVivants[0].joueurs;
+          html += `
+            <div style="background:#d4edda; border:2px solid #28a745; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
+              <h3 style="color:#28a745; margin-bottom:15px;">🏆 PARTIE TERMINÉE ! 🏆</h3>
+              <p style="font-size:18px; margin-bottom:10px;"><strong>Gagnant : ${gagnant.pseudo}</strong></p>
+              <p style="color:#666;">(${gagnant.nom} ${gagnant.prenom})</p>
+              <div style="margin-top:15px; font-size:30px;">🎉 👑 🎉</div>
+            </div>
+          `;
+        } else if (joueursVivants.length === 0) {
+          html += `
+            <div style="background:#f8d7da; border:2px solid #dc3545; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
+              <h3 style="color:#dc3545;">⚠️ ANOMALIE DÉTECTÉE</h3>
+              <p>Aucun joueur vivant dans cette partie. Vérifiez les données.</p>
+            </div>
+          `;
+        }
+        
         document.getElementById('boucleDetails').innerHTML = html;
       } catch (error) {
         console.error('Erreur:', error);
