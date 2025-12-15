@@ -243,6 +243,9 @@
       <h3>⚔️ Kills en attente de validation</h3>
       <div id="killsEnAttenteDetails" style="margin-bottom:30px;"></div>
       
+      <h3>📜 Historique des kills réussis</h3>
+      <div id="historiqueKillsDetails" style="margin-bottom:30px;"></div>
+      
       <button class="btn btn-danger" onclick="fermerModalDetails()" style="margin-top:20px;">
         ❌ Fermer
       </button>
@@ -250,20 +253,21 @@
   </div>
   <script src="supabaseClient.js"></script>
   <script>
-    function showSection(sectionName,element) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-      
-      document.getElementById(sectionName).classList.add('active');
-      element.classList.add('active');
-      
-      if (sectionName === 'inscriptions') chargerInscriptions();
-      if (sectionName === 'joueurs') chargerJoueurs();
-      if (sectionName === 'parties') chargerParties();
-      if (sectionName === 'defis') chargerDefis();
-      if (sectionName === 'kills') chargerKills();
-      if (sectionName === 'classement') chargerListePartiesClassement();
-    }
+function showSection(sectionName,element) {
+  // Sauvegarder la section active
+  localStorage.setItem('adminActiveSection', sectionName);
+  
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(sectionName).classList.add('active');
+  element.classList.add('active');
+  if (sectionName === 'inscriptions') chargerInscriptions();
+  if (sectionName === 'joueurs') chargerJoueurs();
+  if (sectionName === 'parties') chargerParties();
+  if (sectionName === 'defis') chargerDefis();
+  if (sectionName === 'kills') chargerKills();
+  if (sectionName === 'classement') chargerListePartiesClassement();
+}
     
     async function chargerInscriptions() {
       const inscriptions = await supabaseSelect('inscriptions_attente', '?statut=eq.en_attente');
@@ -643,6 +647,10 @@ async function invaliderKill(idKill) {
     
     // Voir les détails d'une partie lancée
     async function voirDetailsPartie(idPartie, nomPartie) {
+        // Sauvegarder l'état du modal
+  localStorage.setItem('adminModalDetailsOpen', 'true');
+  localStorage.setItem('adminModalDetailsPartie', idPartie);
+  localStorage.setItem('adminModalDetailsNom', nomPartie);
       document.getElementById('nomPartieDetails').textContent = `Partie : ${nomPartie}`;
       
       // Charger la boucle des joueurs
@@ -762,7 +770,83 @@ async function invaliderKill(idKill) {
           '<p style="color:red;">Erreur lors du chargement des kills</p>';
       }
     }
-
+   // Charger l'historique des kills réussis pour une partie
+    async function chargerHistoriqueKills(idPartie) {
+      try {
+        // Récupérer tous les kills validés ou acceptés pour cette partie
+        const killsReussis = await supabaseSelect('kills_en_attente',
+          `?id_partie=eq.${idPartie}&or=(statut_kill.eq.valide,statut_kill.eq.accepte)&order=created_at.desc`
+        );
+        
+        if (killsReussis.length === 0) {
+          document.getElementById('historiqueKillsDetails').innerHTML = 
+            '<p style="color:#666;">Aucun kill réussi pour le moment dans cette partie.</p>';
+          return;
+        }
+        
+        // Grouper les kills par joueur
+        const killsParJoueur = {};
+        
+        for (const kill of killsReussis) {
+          const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+          const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+          const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+          
+          if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
+            const tueurData = tueur[0];
+            const cibleData = cible[0];
+            const defiData = defi[0];
+            
+            if (!killsParJoueur[tueurData.pseudo]) {
+              killsParJoueur[tueurData.pseudo] = {
+                nom: `${tueurData.nom} ${tueurData.prenom}`,
+                kills: []
+              };
+            }
+            
+            const dateKill = new Date(kill.created_at);
+            const dateFormatee = dateKill.toLocaleDateString('fr-FR') + ' à ' + 
+                               dateKill.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+            
+            killsParJoueur[tueurData.pseudo].kills.push({
+              cible: cibleData.pseudo,
+              cibleNomComplet: `${cibleData.nom} ${cibleData.prenom}`,
+              defi: defiData.description,
+              date: dateFormatee,
+              statut: kill.statut_kill
+            });
+          }
+        }
+        
+        // Générer le HTML
+        let html = '';
+        
+        Object.keys(killsParJoueur).forEach(pseudo => {
+          const joueurData = killsParJoueur[pseudo];
+          const nbKills = joueurData.kills.length;
+          
+          html += `
+            <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; margin-bottom:20px; padding:15px;">
+              <h4 style="color:#495057; margin-bottom:15px;">
+                🎯 ${pseudo} (${joueurData.nom}) - ${nbKills} kill${nbKills > 1 ? 's' : ''}
+              </h4>
+              <div style="max-height:200px; overflow-y:auto;">
+                <table style="width:100%; font-size:14px;">
+                  <tr style="background:#e9ecef;">
+                    <th style="padding:8px;">Victime</th>
+                    <th style="padding:8px;">Défi</th>
+                    <th style="padding:8px;">Date</th>
+                    <th style="padding:8px;">Statut</th>
+                  </tr>
+          `;
+          
+          joueurData.kills.forEach(kill => {
+            const statutBadge = kill.statut === 'valide' ? 
+              '<span style="background:#007bff;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Admin</span>' :
+              '<span style="background:#28a745;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Accepté</span>';
+            
+            html += `
+    }
 // Valider un kill depuis les détails de la partie
 async function validerKillDepuisDetails(idKill, idPartie) {
   await validerKill(idKill);
@@ -778,13 +862,37 @@ async function invaliderKillDepuisDetails(idKill, idPartie) {
   await chargerKillsEnAttentePartie(idPartie);
 }
 
-    // Fermer le modal des détails
-    function fermerModalDetails() {
-      document.getElementById('modalDetails').style.display = 'none';
-    }
+// Fermer le modal des détails
+function fermerModalDetails() {
+  document.getElementById('modalDetails').style.display = 'none';
+  // Nettoyer le localStorage
+  localStorage.removeItem('adminModalDetailsOpen');
+  localStorage.removeItem('adminModalDetailsPartie');
+  localStorage.removeItem('adminModalDetailsNom');
+}
 
-    // Charger les inscriptions au démarrage de la page
-    document.addEventListener('DOMContentLoaded', chargerInscriptions);
+// Charger la section active au démarrage de la page
+document.addEventListener('DOMContentLoaded', function() {
+  const sectionActive = localStorage.getItem('adminActiveSection') || 'inscriptions';
+  const boutonActif = document.querySelector(`button[onclick*="${sectionActive}"]`);
+  
+  if (boutonActif) {
+    showSection(sectionActive, boutonActif);
+  } else {
+    chargerInscriptions();
+  }
+ // Vérifier si le modal détails était ouvert
+  const modalOuvert = localStorage.getItem('adminModalDetailsOpen');
+  if (modalOuvert === 'true') {
+    const idPartie = localStorage.getItem('adminModalDetailsPartie');
+    const nomPartie = localStorage.getItem('adminModalDetailsNom');
+    if (idPartie && nomPartie) {
+      setTimeout(() => {
+        voirDetailsPartie(idPartie, nomPartie);
+      }, 500); // Petit délai pour laisser la page se charger
+    }
+  }
+});
   </script>
 </body>
 </html>
