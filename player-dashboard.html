@@ -392,8 +392,11 @@ if (partieJoueurData.statut_joueur === 'vivant') {
           }
         }
         
-        // Vérifier s'il y a un kill en attente contre ce joueur
-        await verifierKillEnAttente();
+// Vérifier s'il y a un kill en attente contre ce joueur
+await verifierKillEnAttente();
+
+// Vérifier s'il y a des kills validés récemment
+await verifierKillsValides();
         
         // Masquer le loading et afficher le contenu
         document.getElementById('loading').classList.add('hidden');
@@ -441,6 +444,65 @@ async function verifierKillDeclareParJoueur() {
     document.getElementById('btnDeclareKill').style.cursor = 'not-allowed';
   }
 } 
+  // Vérifier si le joueur a des kills validés récemment
+    async function verifierKillsValides() {
+      try {
+        // Chercher les kills validés par l'admin dans les dernières 24h
+        const maintenant = new Date();
+        const hier = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
+        
+        const killsValides = await supabaseSelect('kills_en_attente',
+          `?id_tueur=eq.${joueurId}&statut_kill=eq.valide&created_at=gte.${hier.toISOString()}`
+        );
+        
+        // Vérifier s'il y a des kills qui viennent d'être validés (pas encore notifiés)
+        const killsNonNotifies = killsValides.filter(kill => {
+          const killNotifie = localStorage.getItem(`kill_notifie_${kill.id}`);
+          return !killNotifie;
+        });
+        
+        if (killsNonNotifies.length > 0) {
+          // Récupérer les infos de la cible pour la notification
+          for (const kill of killsNonNotifies) {
+            const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+            if (cible.length > 0) {
+              // Afficher la notification
+              afficherAlerte('success', `🎉 Votre kill sur ${cible[0].pseudo} a été validé par l'admin ! Vous avez une nouvelle cible.`);
+              
+              // Notification push
+              envoyerNotification('🎉 Kill validé !', `Votre kill sur ${cible[0].pseudo} a été validé ! Nouvelle cible disponible.`);
+              
+              // Marquer comme notifié
+              localStorage.setItem(`kill_notifie_${kill.id}`, 'true');
+            }
+          }
+        }
+        
+        // Vérifier aussi les kills refusés
+        const killsRefuses = await supabaseSelect('kills_en_attente',
+          `?id_tueur=eq.${joueurId}&statut_kill=eq.refuse&created_at=gte.${hier.toISOString()}`
+        );
+        
+        const killsRefusesNonNotifies = killsRefuses.filter(kill => {
+          const killNotifie = localStorage.getItem(`kill_refuse_notifie_${kill.id}`);
+          return !killNotifie;
+        });
+        
+        if (killsRefusesNonNotifies.length > 0) {
+          for (const kill of killsRefusesNonNotifies) {
+            const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+            if (cible.length > 0) {
+              afficherAlerte('danger', `❌ Votre kill sur ${cible[0].pseudo} a été refusé par l'admin.`);
+              envoyerNotification('❌ Kill refusé', `Votre kill sur ${cible[0].pseudo} a été refusé par l'admin.`);
+              localStorage.setItem(`kill_refuse_notifie_${kill.id}`, 'true');
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.error('Erreur lors de la vérification des kills validés:', error);
+      }
+    }
     // Déclarer un kill
     async function declarerKill() {
       if (!confirm('⚔️ Êtes-vous sûr d\'avoir réalisé le défi et de vouloir déclarer ce kill ?')) {
@@ -572,6 +634,7 @@ async function verifierKillDeclareParJoueur() {
 // Auto-refresh toutes les 10 secondes pour vérifier les nouveaux kills
 setInterval(async () => {
   await verifierKillEnAttente();
+  await verifierKillsValides(); // Vérifier les kills validés
   if (partieJoueurData && partieJoueurData.statut_joueur === 'vivant') {
     await verifierKillDeclareParJoueur();
   }
