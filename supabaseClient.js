@@ -44,8 +44,8 @@ async function supabaseDelete(table, filter) {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}${filter}`, {
         method: 'DELETE',
         headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
             'Content-Type': 'application/json'
         }
     });
