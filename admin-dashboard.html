@@ -564,16 +564,6 @@ async function genererBoucle() {
     
     document.getElementById('affichageBoucle').innerHTML = html;
     document.getElementById('boucleSection').style.display = 'block';
-    // Modifier un défi dans la boucle
-async function modifierDefi(index, nouveauDefiId) {
-    const defis = await supabaseSelect('defis');
-    const nouveauDefi = defis.find(d => d.id == nouveauDefiId);
-    
-    if (nouveauDefi) {
-        boucleGeneree[index].defi = nouveauDefi;
-        afficherStatsDefis(); // Mettre à jour les stats
-    }
-}
     // Afficher les statistiques
     afficherStatsDefis();
 }
