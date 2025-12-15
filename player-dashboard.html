@@ -369,19 +369,22 @@
             document.getElementById('statutBadge').className = 'status-badge status-attente';
           } else {
             // Partie lancée - vérifier le statut du joueur
-            if (partieJoueurData.statut_joueur === 'vivant') {
-              document.getElementById('statutBadge').textContent = '✅ Vivant';
-              document.getElementById('statutBadge').className = 'status-badge status-vivant';
-              document.getElementById('targetSection').classList.remove('hidden');
-              
-              // Afficher les infos de la cible
-              const cible = partieJoueurData.joueurs;
-              document.getElementById('cibleNom').textContent = cible.nom;
-              document.getElementById('ciblePrenom').textContent = cible.prenom;
-              document.getElementById('ciblePseudo').textContent = cible.pseudo;
-              document.getElementById('defiDescription').textContent = partieJoueurData.defis.description;
-              
-            } else if (partieJoueurData.statut_joueur === 'mort') {
+if (partieJoueurData.statut_joueur === 'vivant') {
+  document.getElementById('statutBadge').textContent = '✅ Vivant';
+  document.getElementById('statutBadge').className = 'status-badge status-vivant';
+  document.getElementById('targetSection').classList.remove('hidden');
+  
+  // Afficher les infos de la cible
+  const cible = partieJoueurData.joueurs;
+  document.getElementById('cibleNom').textContent = cible.nom;
+  document.getElementById('ciblePrenom').textContent = cible.prenom;
+  document.getElementById('ciblePseudo').textContent = cible.pseudo;
+  document.getElementById('defiDescription').textContent = partieJoueurData.defis.description;
+  
+  // Vérifier si le joueur a déjà déclaré un kill en attente
+  await verifierKillDeclareParJoueur();
+}
+            else if (partieJoueurData.statut_joueur === 'mort') {
               document.getElementById('statutBadge').textContent = '💀 Éliminé';
               document.getElementById('statutBadge').className = 'status-badge status-mort';
               document.getElementById('deadSection').classList.remove('hidden');
@@ -424,7 +427,20 @@
         document.getElementById('btnDeclareKill').classList.add('hidden');
       }
     }
-    
+   // Vérifier si le joueur a déjà déclaré un kill en attente
+async function verifierKillDeclareParJoueur() {
+  const killsDeclares = await supabaseSelect('kills_en_attente',
+    `?id_tueur=eq.${joueurId}&statut_kill=eq.en_attente`
+  );
+  
+  if (killsDeclares.length > 0) {
+    // Le joueur a déjà déclaré un kill en attente
+    document.getElementById('btnDeclareKill').disabled = true;
+    document.getElementById('btnDeclareKill').textContent = '⏳ Kill déclaré - En attente';
+    document.getElementById('btnDeclareKill').style.background = '#6c757d';
+    document.getElementById('btnDeclareKill').style.cursor = 'not-allowed';
+  }
+} 
     // Déclarer un kill
     async function declarerKill() {
       if (!confirm('⚔️ Êtes-vous sûr d\'avoir réalisé le défi et de vouloir déclarer ce kill ?')) {
@@ -553,8 +569,13 @@
       }, 5000);
     }
     
-    // Auto-refresh toutes les 10 secondes pour vérifier les nouveaux kills
-    setInterval(verifierKillEnAttente, 10000);
+// Auto-refresh toutes les 10 secondes pour vérifier les nouveaux kills
+setInterval(async () => {
+  await verifierKillEnAttente();
+  if (partieJoueurData && partieJoueurData.statut_joueur === 'vivant') {
+    await verifierKillDeclareParJoueur();
+  }
+}, 10000);
     
     // Charger le dashboard au démarrage
     chargerDashboard();
