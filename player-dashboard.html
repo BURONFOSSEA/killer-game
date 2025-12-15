@@ -274,6 +274,15 @@
           💀 Vous avez été éliminé ! Merci d'avoir participé.
         </div>
       </div>
+       <!-- Zone victoire -->
+      <div id="victorySection" class="info-section hidden">
+        <div class="alert alert-success" style="text-align:center; padding:30px;">
+          <h2 style="color:#28a745; margin-bottom:20px;">🏆 FÉLICITATIONS ! 🏆</h2>
+          <p style="font-size:20px; margin-bottom:15px;">Vous avez gagné la partie !</p>
+          <p style="font-size:16px; color:#666;">Vous êtes le dernier survivant du Killer Game.</p>
+          <div style="margin-top:20px; font-size:50px;">🎉 👑 🎉</div>
+        </div>
+      </div>
         <!-- Zone Historique -->
       <div id="historiqueSection" class="info-section hidden">
         <h3>📜 Votre historique de kills</h3>
@@ -379,12 +388,29 @@ if (partieJoueurData.statut_joueur === 'vivant') {
   document.getElementById('statutBadge').className = 'status-badge status-vivant';
   document.getElementById('targetSection').classList.remove('hidden');
   
-  // Afficher les infos de la cible
-  const cible = partieJoueurData.joueurs;
+// Afficher les infos de la cible
+const cible = partieJoueurData.joueurs;
+
+// Vérifier si le joueur doit se tuer lui-même (victoire)
+if (partieJoueurData.id_cible === joueurId) {
+  // Le joueur a gagné !
+  document.getElementById('targetSection').classList.add('hidden');
+  document.getElementById('victorySection').classList.remove('hidden');
+  
+  // Marquer la partie comme terminée
+  await supabaseUpdate('parties',
+    { statut: 'terminee' },
+    `?id=eq.${partieJoueurData.id_partie}`
+  );
+  
+  envoyerNotification('🏆 VICTOIRE !', 'Félicitations ! Vous avez gagné la partie !');
+} else {
+  // Affichage normal de la cible
   document.getElementById('cibleNom').textContent = cible.nom;
   document.getElementById('ciblePrenom').textContent = cible.prenom;
   document.getElementById('ciblePseudo').textContent = cible.pseudo;
   document.getElementById('defiDescription').textContent = partieJoueurData.defis.description;
+}
   
   // Vérifier si le joueur a déjà déclaré un kill en attente
   await verifierKillDeclareParJoueur();
