@@ -472,73 +472,96 @@ joueursSelectionnes = joueursSelectionnes.filter(j => j.id !== id);
 }
 }
 async function genererBoucle() {
-    if (joueursSelectionnes.length < 3) {
-        alert('⚠️ Il faut au moins 3 joueurs pour créer une partie');
-        return;
+        afficherStatsDefis(); // Mettre à jour les stats
     }
+}
 
-    // Meilleur mélange des joueurs (algorithme Fisher-Yates)
-    function melangerTableau(tableau) {
-        const result = [...tableau];
-        for (let i = result.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [result[i], result[j]] = [result[j], result[i]];
-        }
-        return result;
-    }
-
-    // Mélanger les joueurs avec un vrai algorithme aléatoire
-    let joueursMelanges = melangerTableau(joueursSelectionnes);
+// Afficher les statistiques des défis utilisés
+function afficherStatsDefis() {
+    const compteurDefis = {};
+    const defisNonUtilises = [];
     
+    // Compter les défis utilisés
+    boucleGeneree.forEach(item => {
+        if (compteurDefis[item.defi.description]) {
+            compteurDefis[item.defi.description]++;
+        } else {
+            compteurDefis[item.defi.description] = 1;
+        }
+    });
+    
+    // Récupérer tous les défis pour voir lesquels ne sont pas utilisés
+    supabaseSelect('defis').then(tousDefis => {
+        const defisUtilises = boucleGeneree.map(b => b.defi.id);
+        const defisLibres = tousDefis.filter(d => !defisUtilises.includes(d.id));
+        
+        let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+        
+        // Colonne 1 : Défis utilisés
+        html += '<div>';
+        html += '<h5 style="color: #28a745; margin-bottom: 10px;">✅ Défis attribués :</h5>';
+        for (const [defi, count] of Object.entries(compteurDefis)) {
+            const couleur = count > 1 ? '#dc3545' : '#28a745';
+            html += `<div style="color: ${couleur}; margin-bottom: 5px;">
+                        ${defi} ${count > 1 ? `(utilisé ${count} fois)` : ''}
+                     </div>`;
+        }
+        html += '</div>';
+        
+        // Colonne 2 : Défis non utilisés
+        html += '<div>';
+        if (defisLibres.length > 0) {
+            html += '<h5 style="color: #007bff; margin-bottom: 10px;">💡 Défis disponibles :</h5>';
+            defisLibres.forEach(defi => {
+                html += `<div style="color: #666; margin-bottom: 5px;">
+                            ${defi.description}
+                         </div>`;
+            });
+        } else {
+            html += '<h5 style="color: #ffc107; margin-bottom: 10px;">⚠️ Tous les défis sont utilisés</h5>';
+        }
+        html += '</div>';
+        
+        html += '</div>';
+        
+        // Avertissement si des défis sont dupliqués
+        const defisDeubeles = Object.entries(compteurDefis).filter(([defi, count]) => count > 1);
+        if (defisDeubeles.length > 0) {
+            html += `<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                        <strong>⚠️ Attention :</strong> Certains défis sont utilisés plusieurs fois. 
+                        Utilisez le bouton "Optimiser les défis" pour une répartition unique.
+                     </div>`;
+        }
+        
+        document.getElementById('statsDefis').innerHTML = html;
+    });
+}
+
+// Optimiser automatiquement les défis pour éviter les doublons
+async function verifierEtOptimiserDefis() {
     const defis = await supabaseSelect('defis');
     
-    // Mélanger aussi les défis pour plus de variété
-    let defisMelanges = melangerTableau(defis);
-    
-    boucleGeneree = [];
-    
-    for (let i = 0; i < joueursMelanges.length; i++) {
-        const tueur = joueursMelanges[i];
-        const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
-        
-        // Choisir un défi aléatoire (avec possibilité de répétition si pas assez de défis)
-        const defi = defisMelanges[Math.floor(Math.random() * defisMelanges.length)];
-        
-        boucleGeneree.push({
-            tueur,
-            cible,
-            defi
-        });
+    if (defis.length < boucleGeneree.length) {
+        alert(`⚠️ Il n'y a que ${defis.length} défis disponibles pour ${boucleGeneree.length} joueurs.\nCertains défis seront forcément dupliqués.`);
     }
-
-    // Affichage du résultat
-    let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
-    boucleGeneree.forEach(item => {
-        html += `
-        <tr>
-            <td>${item.tueur.pseudo}</td>
-            <td>→</td>
-            <td>${item.cible.pseudo}</td>
-            <td>${item.defi.description}</td>
-        </tr>
-        `;
-    });
-    html += '</table>';
     
-    // Bouton pour re-générer si pas satisfait
-    html += `
-    <div style="margin-top: 15px; text-align: center;">
-        <button class="btn btn-primary" onclick="genererBoucle()" style="margin-right: 10px;">
-            🔄 Régénérer la boucle
-        </button>
-        <small style="color: #666; display: block; margin-top: 5px;">
-            Vous pouvez régénérer autant de fois que vous le souhaitez
-        </small>
-    </div>
-    `;
+    if (!confirm('✨ Voulez-vous optimiser automatiquement la répartition des défis ?\n\nCela attribuera un défi unique à chaque joueur dans la mesure du possible.')) {
+        return;
+    }
     
-    document.getElementById('affichageBoucle').innerHTML = html;
-    document.getElementById('boucleSection').style.display = 'block';
+    // Mélanger les défis pour une attribution aléatoire mais optimisée
+    const defisMelanges = [...defis].sort(() => Math.random() - 0.5);
+    
+    // Attribuer les défis de manière optimisée
+    for (let i = 0; i < boucleGeneree.length; i++) {
+        const defiIndex = i % defisMelanges.length;
+        boucleGeneree[i].defi = defisMelanges[defiIndex];
+    }
+    
+    // Régénérer l'affichage
+    genererBoucle();
+    
+    alert('✅ Défis optimisés ! Chaque défi est maintenant utilisé de manière équilibrée.');
 }
 async function lancerPartie() {
 if (!confirm('🚀 Êtes-vous sûr de vouloir lancer la partie ? Les joueurs recevront leurs cibles.')) {
