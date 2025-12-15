@@ -443,17 +443,85 @@ html += `
       document.getElementById('killsTable').innerHTML = html;
     }
     
-    async function validerKill(idKill) {
-      await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
-      alert('✅ Kill validé par l\'admin !');
-      chargerKills();
+async function validerKill(idKill) {
+  try {
+    // Récupérer les infos du kill
+    const killData = await supabaseSelect('kills_en_attente', `?id=eq.${idKill}`);
+    if (killData.length === 0) {
+      alert('❌ Kill non trouvé');
+      return;
     }
     
-    async function invaliderKill(idKill) {
-      await supabaseUpdate('kills_en_attente', { statut_kill: 'refuse' }, `?id=eq.${idKill}`);
-      alert('❌ Kill invalidé');
-      chargerKills();
+    const kill = killData[0];
+    
+    // 1. Mettre à jour le statut du kill
+    await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
+    
+    // 2. Mettre à jour le statut de la cible (elle est morte)
+    await supabaseUpdate('parties_joueurs',
+      { statut_joueur: 'mort' },
+      `?id_joueur=eq.${kill.id_cible}&id_partie=eq.${kill.id_partie}`
+    );
+    
+    // 3. Récupérer la cible de la victime (celle du joueur mort)
+    const victime = await supabaseSelect('parties_joueurs',
+      `?id_joueur=eq.${kill.id_cible}&id_partie=eq.${kill.id_partie}`
+    );
+    
+    if (victime.length > 0) {
+      const nouvelleCible = victime[0].id_cible;
+      const nouveauDefi = victime[0].id_defi;
+      
+      // 4. Assigner cette cible au tueur
+      await supabaseUpdate('parties_joueurs',
+        {
+          id_cible: nouvelleCible,
+          id_defi: nouveauDefi
+        },
+        `?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
+      );
+      
+      // 5. Mettre à jour l'historique du tueur
+      const tueurData = await supabaseSelect('parties_joueurs',
+        `?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
+      );
+      
+      if (tueurData.length > 0) {
+        // Récupérer le pseudo de la victime
+        const victimeInfo = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+        const pseudoVictime = victimeInfo.length > 0 ? victimeInfo[0].pseudo : 'Inconnu';
+        
+        let historique = tueurData[0].historique_kills || [];
+        historique.push({
+          cible: pseudoVictime,
+          date: new Date().toISOString()
+        });
+        
+        await supabaseUpdate('parties_joueurs',
+          { historique_kills: historique },
+          `?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
+        );
+      }
     }
+    
+    alert('✅ Kill validé par l\'admin ! Le joueur a été éliminé et le tueur a récupéré une nouvelle cible.');
+    chargerKills();
+  } catch (error) {
+    console.error('Erreur:', error);
+    alert('❌ Erreur lors de la validation du kill');
+  }
+}
+
+async function invaliderKill(idKill) {
+  try {
+    await supabaseUpdate('kills_en_attente', { statut_kill: 'refuse' }, `?id=eq.${idKill}`);
+    alert('❌ Kill invalidé par l\'admin');
+    chargerKills();
+  } catch (error) {
+    console.error('Erreur:', error);
+    alert('❌ Erreur lors de l\'invalidation du kill');
+  }
+}
     
     let partieEnCours = null;
     let joueursSelectionnes = [];
@@ -667,20 +735,20 @@ html += `
       }
     }
 
-    // Valider un kill depuis les détails de la partie
-    async function validerKillDepuisDetails(idKill, idPartie) {
-      await validerKill(idKill);
-      // Recharger les détails de la partie
-      await chargerKillsEnAttentePartie(idPartie);
-      await chargerBouclePartie(idPartie);
-    }
+// Valider un kill depuis les détails de la partie
+async function validerKillDepuisDetails(idKill, idPartie) {
+  await validerKill(idKill);
+  // Recharger les détails de la partie
+  await chargerKillsEnAttentePartie(idPartie);
+  await chargerBouclePartie(idPartie);
+}
 
-    // Invalider un kill depuis les détails de la partie
-    async function invaliderKillDepuisDetails(idKill, idPartie) {
-      await invaliderKill(idKill);
-      // Recharger les détails de la partie
-      await chargerKillsEnAttentePartie(idPartie);
-    }
+// Invalider un kill depuis les détails de la partie
+async function invaliderKillDepuisDetails(idKill, idPartie) {
+  await invaliderKill(idKill);
+  // Recharger les détails de la partie
+  await chargerKillsEnAttentePartie(idPartie);
+}
 
     // Fermer le modal des détails
     function fermerModalDetails() {
