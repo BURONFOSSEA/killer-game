@@ -547,6 +547,8 @@ document.getElementById('nomPartieDetails').textContent = `Partie : ${nomPartie}
 await chargerBouclePartie(idPartie);
 // Charger les kills en attente
 await chargerKillsEnAttentePartie(idPartie);
+// Charger l'historique des kills - AJOUTEZ CETTE LIGNE
+await chargerHistoriqueKills(idPartie);
 document.getElementById('modalDetails').style.display = 'block';
 }
 // Charger la boucle des joueurs pour une partie
@@ -643,46 +645,7 @@ document.getElementById('killsEnAttenteDetails').innerHTML =
 '<p style="color:red;">Erreur lors du chargement des kills</p>';
 }
 }
-// Charger l'historique des kills réussis pour une partie
-async function chargerHistoriqueKills(idPartie) {
-try {
-// Récupérer tous les kills validés ou acceptés pour cette partie
-const killsReussis = await supabaseSelect('kills_en_attente',
-`?id_partie=eq.${idPartie}&or=(statut_kill.eq.valide,statut_kill.eq.accepte)&order=created_at.desc`
-);
-if (killsReussis.length === 0) {
-document.getElementById('historiqueKillsDetails').innerHTML =
-'<p style="color:#666;">Aucun kill réussi pour le moment dans cette partie.</p>';
-return;
-}
-// Grouper les kills par joueur
-const killsParJoueur = {};
-for (const kill of killsReussis) {
-const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
-const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
-const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
-if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
-const tueurData = tueur[0];
-const cibleData = cible[0];
-const defiData = defi[0];
-if (!killsParJoueur[tueurData.pseudo]) {
-killsParJoueur[tueurData.pseudo] = {
-nom: `${tueurData.nom} ${tueurData.prenom}`,
-kills: []
-};
-}
-const dateKill = new Date(kill.created_at);
-const dateFormatee = dateKill.toLocaleDateString('fr-FR') + ' à ' +
-dateKill.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
-killsParJoueur[tueurData.pseudo].kills.push({
-cible: cibleData.pseudo,
-cibleNomComplet: `${cibleData.nom} ${cibleData.prenom}`,
-defi: defiData.description,
-date: dateFormatee,
-statut: kill.statut_kill
-});
-}
-}
+arger l'historique des kills réussis pour une partie
 // Générer le HTML
 let html = '';
 Object.keys(killsParJoueur).forEach(pseudo => {
@@ -732,7 +695,7 @@ localStorage.removeItem('adminModalDetailsNom');
 // Charger la section active au démarrage de la page
 document.addEventListener('DOMContentLoaded', function() {
 const sectionActive = localStorage.getItem('adminActiveSection') || 'inscriptions';
-const boutonActif = document.querySelector`button[onclick*="${sectionActive}"]`);
+const boutonActif = document.querySelector(`button[onclick*="${sectionActive}"]`);
 if (boutonActif) {
 showSection(sectionActive, boutonActif);
 } else {
