@@ -545,12 +545,26 @@ async function chargerDonneesPartie() {
       
       afficherHistorique();
       
-      // Vérifier si la partie est lancée
-      if (partieJoueurData.parties.statut !== 'lancee') {
-        document.getElementById('waitingSection').classList.remove('hidden');
-        document.getElementById('statutBadge').textContent = '⏳ En attente';
-        document.getElementById('statutBadge').className = 'status-badge status-attente';
-      } else {
+// Vérifier le statut de la partie
+if (partieJoueurData.parties.statut === 'terminee') {
+  // Partie terminée - vérifier si ce joueur a gagné
+  if (partieJoueurData.statut_joueur === 'vivant') {
+    // Le joueur est vivant dans une partie terminée = il a gagné !
+    document.getElementById('statutBadge').textContent = '🏆 Gagnant';
+    document.getElementById('statutBadge').className = 'status-badge status-vivant';
+    document.getElementById('victorySection').classList.remove('hidden');
+    envoyerNotification('🏆 VICTOIRE !', 'Félicitations ! Vous avez gagné la partie !');
+  } else {
+    // Le joueur est mort dans une partie terminée
+    document.getElementById('statutBadge').textContent = '💀 Éliminé';
+    document.getElementById('statutBadge').className = 'status-badge status-mort';
+    document.getElementById('deadSection').classList.remove('hidden');
+  }
+} else if (partieJoueurData.parties.statut !== 'lancee') {
+  document.getElementById('waitingSection').classList.remove('hidden');
+  document.getElementById('statutBadge').textContent = '⏳ En attente';
+  document.getElementById('statutBadge').className = 'status-badge status-attente';
+} else {
         // Partie lancée - vérifier le statut du joueur
         if (partieJoueurData.statut_joueur === 'vivant') {
           document.getElementById('statutBadge').textContent = '✅ Vivant';
@@ -560,17 +574,19 @@ async function chargerDonneesPartie() {
           // Afficher les infos de la cible
           const cible = partieJoueurData.joueurs;
           // Vérifier si le joueur doit se tuer lui-même (victoire)
-          if (partieJoueurData.id_cible === joueurId) {
-            // Le joueur a gagné !
-            document.getElementById('targetSection').classList.add('hidden');
-            document.getElementById('victorySection').classList.remove('hidden');
-            // Marquer la partie comme terminée
-            await supabaseUpdate('parties',
-              { statut: 'terminee' },
-              `?id=eq.${partieJoueurData.id_partie}`
-            );
-            envoyerNotification('🏆 VICTOIRE !', 'Félicitations ! Vous avez gagné la partie !');
-          } else {
+if (partieJoueurData.id_cible === joueurId) {
+  // Le joueur a gagné !
+  document.getElementById('targetSection').classList.add('hidden');
+  document.getElementById('victorySection').classList.remove('hidden');
+  document.getElementById('statutBadge').textContent = '🏆 Gagnant';
+  document.getElementById('statutBadge').className = 'status-badge status-vivant';
+  // Marquer la partie comme terminée
+  await supabaseUpdate('parties',
+    { statut: 'terminee' },
+    `?id=eq.${partieJoueurData.id_partie}`
+  );
+  envoyerNotification('🏆 VICTOIRE !', 'Félicitations ! Vous avez gagné la partie !');
+} else {
             // Affichage normal de la cible
             document.getElementById('cibleNom').textContent = cible.nom;
             document.getElementById('ciblePrenom').textContent = cible.prenom;
@@ -650,12 +666,26 @@ if (partiesJoueurFiltered.length === 0) {
   
   afficherHistorique();
           
-          // Vérifier si la partie est lancée
-          if (partieJoueurData.parties.statut !== 'lancee') {
-            document.getElementById('waitingSection').classList.remove('hidden');
-            document.getElementById('statutBadge').textContent = '⏳ En attente';
-            document.getElementById('statutBadge').className = 'status-badge status-attente';
-          } else {
+// Vérifier le statut de la partie
+if (partieJoueurData.parties.statut === 'terminee') {
+  // Partie terminée - vérifier si ce joueur a gagné
+  if (partieJoueurData.statut_joueur === 'vivant') {
+    // Le joueur est vivant dans une partie terminée = il a gagné !
+    document.getElementById('statutBadge').textContent = '🏆 Gagnant';
+    document.getElementById('statutBadge').className = 'status-badge status-vivant';
+    document.getElementById('victorySection').classList.remove('hidden');
+    envoyerNotification('🏆 VICTOIRE !', 'Félicitations ! Vous avez gagné la partie !');
+  } else {
+    // Le joueur est mort dans une partie terminée
+    document.getElementById('statutBadge').textContent = '💀 Éliminé';
+    document.getElementById('statutBadge').className = 'status-badge status-mort';
+    document.getElementById('deadSection').classList.remove('hidden');
+  }
+} else if (partieJoueurData.parties.statut !== 'lancee') {
+  document.getElementById('waitingSection').classList.remove('hidden');
+  document.getElementById('statutBadge').textContent = '⏳ En attente';
+  document.getElementById('statutBadge').className = 'status-badge status-attente';
+} else {
             // Partie lancée - vérifier le statut du joueur
 if (partieJoueurData.statut_joueur === 'vivant') {
   document.getElementById('statutBadge').textContent = '✅ Vivant';
