@@ -472,37 +472,73 @@ joueursSelectionnes = joueursSelectionnes.filter(j => j.id !== id);
 }
 }
 async function genererBoucle() {
-if (joueursSelectionnes.length < 3) {
-alert('⚠️ Il faut au moins 3 joueurs pour créer une partie');
-return;
-}
-let joueursMelanges = [...joueursSelectionnes].sort(() => Math.random() - 0.5);
-const defis = await supabaseSelect('defis');
-boucleGeneree = [];
-for (let i = 0; i < joueursMelanges.length; i++) {
-const tueur = joueursMelanges[i];
-const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
-const defi = defis[Math.floor(Math.random() * defis.length)];
-boucleGeneree.push({
-tueur,
-cible,
-defi
-});
-}
-let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
-boucleGeneree.forEach(item => {
-html += `
-<tr>
-<td>${item.tueur.pseudo}</td>
-<td>→</td>
-<td>${item.cible.pseudo}</td>
-<td>${item.defi.description}</td>
-</tr>
-`;
-});
-html += '</table>';
-document.getElementById('affichageBoucle').innerHTML = html;
-document.getElementById('boucleSection').style.display = 'block';
+    if (joueursSelectionnes.length < 3) {
+        alert('⚠️ Il faut au moins 3 joueurs pour créer une partie');
+        return;
+    }
+
+    // Meilleur mélange des joueurs (algorithme Fisher-Yates)
+    function melangerTableau(tableau) {
+        const result = [...tableau];
+        for (let i = result.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+    }
+
+    // Mélanger les joueurs avec un vrai algorithme aléatoire
+    let joueursMelanges = melangerTableau(joueursSelectionnes);
+    
+    const defis = await supabaseSelect('defis');
+    
+    // Mélanger aussi les défis pour plus de variété
+    let defisMelanges = melangerTableau(defis);
+    
+    boucleGeneree = [];
+    
+    for (let i = 0; i < joueursMelanges.length; i++) {
+        const tueur = joueursMelanges[i];
+        const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
+        
+        // Choisir un défi aléatoire (avec possibilité de répétition si pas assez de défis)
+        const defi = defisMelanges[Math.floor(Math.random() * defisMelanges.length)];
+        
+        boucleGeneree.push({
+            tueur,
+            cible,
+            defi
+        });
+    }
+
+    // Affichage du résultat
+    let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
+    boucleGeneree.forEach(item => {
+        html += `
+        <tr>
+            <td>${item.tueur.pseudo}</td>
+            <td>→</td>
+            <td>${item.cible.pseudo}</td>
+            <td>${item.defi.description}</td>
+        </tr>
+        `;
+    });
+    html += '</table>';
+    
+    // Bouton pour re-générer si pas satisfait
+    html += `
+    <div style="margin-top: 15px; text-align: center;">
+        <button class="btn btn-primary" onclick="genererBoucle()" style="margin-right: 10px;">
+            🔄 Régénérer la boucle
+        </button>
+        <small style="color: #666; display: block; margin-top: 5px;">
+            Vous pouvez régénérer autant de fois que vous le souhaitez
+        </small>
+    </div>
+    `;
+    
+    document.getElementById('affichageBoucle').innerHTML = html;
+    document.getElementById('boucleSection').style.display = 'block';
 }
 async function lancerPartie() {
 if (!confirm('🚀 Êtes-vous sûr de vouloir lancer la partie ? Les joueurs recevront leurs cibles.')) {
