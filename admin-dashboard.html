@@ -537,15 +537,22 @@
         );
         
         alert('✅ Partie lancée avec succès ! Les joueurs peuvent maintenant se connecter.');
-        
         fermerModal();
         chargerParties();
-        
       } catch (error) {
         console.error('Erreur:', error);
         alert('❌ Erreur lors du lancement de la partie');
       }
-         document.addEventListener('DOMContentLoaded', chargerInscriptions);
-    
+    }
+
+    function fermerModal() {
+      document.getElementById('modalConfig').style.display = 'none';
+      partieEnCours = null;
+      joueursSelectionnes = [];
+      boucleGeneree = [];
+    }
+
+    // Charger les inscriptions au démarrage de la page
+    document.addEventListener('DOMContentLoaded', chargerInscriptions);
   </script>
 </body>
