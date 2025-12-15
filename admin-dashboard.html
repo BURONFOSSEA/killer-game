@@ -645,31 +645,55 @@ document.getElementById('killsEnAttenteDetails').innerHTML =
 '<p style="color:red;">Erreur lors du chargement des kills</p>';
 }
 }
-//Charger l'historique des kills réussis pour une partie
-// Générer le HTML
-let html = '';
-Object.keys(killsParJoueur).forEach(pseudo => {
-const joueurData = killsParJoueur[pseudo];
-const nbKills = joueurData.kills.length;
-html += `
-<div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; margin-bottom:20px; padding:15px;">
-<h4 style="color:#495057; margin-bottom:15px;">
-🎯 ${pseudo} (${joueurData.nom}) - ${nbKills} kill${nbKills > 1 ? 's' : ''}
-</h4>
-<div style="max-height:200px; overflow-y:auto;">
-<table style="width:100%; font-size:14px;">
-<tr style="background:#e9ecef;">
-<th style="padding:8px;">Victime</th>
-<th style="padding:8px;">Défi</th>
-<th style="padding:8px;">Date</th>
-<th style="padding:8px;">Statut</th>
-</tr>
-`;
-joueurData.kills.forEach(kill => {
-const statutBadge = kill.statut === 'valide' ?
-'<span style="background:#007bff;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Admin</span>' :
-'<span style="background:#28a745;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Accepté</span>';
-html += `
+// Charger l'historique des kills réussis pour une partie
+async function chargerHistoriqueKills(idPartie) {
+    try {
+        const kills = await supabaseSelect('kills_en_attente', 
+            `?id_partie=eq.${idPartie}&statut_kill=neq.en_attente`
+        );
+        
+        if (kills.length === 0) {
+            document.getElementById('historiqueKillsDetails').innerHTML = 
+                '<p style="color:#666;">Aucun kill terminé pour cette partie.</p>';
+            return;
+        }
+        
+        let html = '<table><tr><th>Tueur</th><th>Victime</th><th>Défi</th><th>Date</th><th>Statut</th></tr>';
+        
+        for (const kill of kills) {
+            const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+            const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+            const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+            
+            if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
+                const dateKill = new Date(kill.created_at);
+                const dateFormatee = dateKill.toLocaleDateString('fr-FR');
+                
+                const statutBadge = kill.statut_kill === 'valide' ?
+                    '<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">✅ Validé</span>' :
+                    '<span style="background:#dc3545;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">❌ Refusé</span>';
+                
+                html += `
+                <tr>
+                    <td>${tueur[0].pseudo}</td>
+                    <td>${cible[0].pseudo}</td>
+                    <td>${defi[0].description}</td>
+                    <td>${dateFormatee}</td>
+                    <td>${statutBadge}</td>
+                </tr>
+                `;
+            }
+        }
+        
+        html += '</table>';
+        document.getElementById('historiqueKillsDetails').innerHTML = html;
+        
+    } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('historiqueKillsDetails').innerHTML = 
+            '<p style="color:red;">Erreur lors du chargement de l\'historique</p>';
+    }
+}
 // Valider un kill depuis les détails de la partie
 async function validerKillDepuisDetails(idKill, idPartie) {
 await validerKill(idKill);
