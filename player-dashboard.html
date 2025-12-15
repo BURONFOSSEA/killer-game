@@ -177,8 +177,13 @@
       background: #d4edda;
       border: 1px solid #c3e6cb;
       color: #155724;
+      animation: celebration 0.6s ease-out;
     }
-    
+       @keyframes celebration {
+      0% { transform: scale(0.8); background: #28a745; }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    } 
     .alert-warning {
       background: #fff3cd;
       border: 1px solid #ffeaa7;
