@@ -1,4 +1,121 @@
 <!DOCTYPE html>
+      background: #f5576c;
+      color: white;
+    }
+    tr:hover {
+      background: #f9f9f9;
+    }
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-right: 5px;
+    }
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    if (localStorage.getItem('isAdmin') !== 'true') {
+      window.location.href = 'admin-login.html';
+    }
+  </script>
+  <div class="header">
+    <h1>🎯 Admin Dashboard - Killer Game</h1>
+    <p>Gérez vos parties et joueurs</p>
+  </div>
+  <div class="nav">
+    <button onclick="showSection('inscriptions',this)" class="active">📝 Inscriptions</button>
+    <button onclick="showSection('joueurs',this)">👥 Joueurs</button>
+    <button onclick="showSection('parties',this)">🎮 Parties</button>
+    <button onclick="showSection('defis',this)">💡 Défis</button>
+    <button onclick="showSection('kills',this)">⚔️ Kills</button>
+  </div>
+  <div class="content">
+    <div id="inscriptions" class="section active">
+      <h2>📝 Inscriptions en attente</h2>
+      <div id="inscriptionsTable"></div>
+    </div>
+    <div id="joueurs" class="section">
+      <h2>👥 Liste des joueurs validés</h2>
+      <div id="joueursTable"></div>
+    </div>
+    <div id="parties" class="section">
+      <h2>🎮 Gestion des parties</h2>
+      <div style="margin-bottom: 30px;">
+        <h3>Créer une nouvelle partie</h3>
+        <div class="form-group">
+          <label>Nom de la partie</label>
+          <input type="text" id="nomPartie" placeholder="Ex: Partie de Noël 2024">
+        </div>
+        <button class="btn btn-primary" onclick="creerPartie()">Créer la partie</button>
+      </div>
+      <div id="partiesTable"></div>
+    </div>
+    <div id="defis" class="section">
+      <h2>💡 Gestion des défis</h2>
+      <div style="margin-bottom: 30px;">
+        <h3>Ajouter un nouveau défi</h3>
+        <div class="form-group">
+          <label>Description du défi</label>
+          <input type="text" id="nouveauDefi" placeholder="Ex: Faire un high-five à votre cible">
+        </div>
+        <button class="btn btn-primary" onclick="ajouterDefi()">Ajouter le défi</button>
+      </div>
+      <div id="defisTable"></div>
+    </div>
+    <div id="kills" class="section">
+      <h2>⚔️ Kills contestés</h2>
+      <div id="killsTable"></div>
+    </div>
+  </div>
+    <div id="modalConfig" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000;">
+        statut_global: 'actif'
+      });
+      await supabaseUpdate('inscriptions_attente', { statut: 'valide' }, `?id=eq.${id}`);
+      alert('✅ Joueur validé !');
+      chargerInscriptions();
+    }
+
+    async function refuserInscription(id) {
+      await supabaseUpdate('inscriptions_attente', { statut: 'refuse' }, `?id=eq.${id}`);
+      alert('❌ Inscription refusée');
+      chargerInscriptions();
+    }
+
+    async function chargerJoueurs() {
+      const joueurs = await supabaseSelect('joueurs');
+      let html = '<table><tr><th>Nom</th><th>Prénom</th><th>Pseudo</th><th>Téléphone</th><th>Statut</th></tr>';
+      joueurs.forEach(joueur => {
+        html += `
           <tr>
             <td>${joueur.nom}</td>
             <td>${joueur.prenom}</td>
@@ -51,184 +168,73 @@
       html += '</table>';
       document.getElementById('partiesTable').innerHTML = html;
     }
-
-    async function ajouterDefi() {
-      const description = document.getElementById('nouveauDefi').value;
-      if (!description) {
-        alert('⚠️ Veuillez entrer une description');
+                  async function ajouterDefi() {
         return;
       }
-      await supabaseInsert('defis', {
-        description: description
-      });
-      alert('✅ Défi ajouté !');
-      document.getElementById('nouveauDefi').value = '';
-      chargerDefis();
-    }
-        async function chargerDefis() {
+      let joueursMelanges = [...joueursSelectionnes].sort(() => Math.random() - 0.5);
       const defis = await supabaseSelect('defis');
-      let html = '<table><tr><th>Description du défi</th></tr>';
-      defis.forEach(defi => {
+      boucleGeneree = [];
+      for (let i = 0; i < joueursMelanges.length; i++) {
+        const tueur = joueursMelanges[i];
+        const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
+        const defi = defis[Math.floor(Math.random() * defis.length)];
+        boucleGeneree.push({
+          tueur,
+          cible,
+          defi
+        });
+      }
+      let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
+      boucleGeneree.forEach(item => {
         html += `
           <tr>
-            <td>${defi.description}</td>
+            <td>${item.tueur.pseudo}</td>
+            <td>→</td>
+            <td>${item.cible.pseudo}</td>
+            <td>${item.defi.description}</td>
           </tr>
         `;
       });
       html += '</table>';
-      document.getElementById('defisTable').innerHTML = html;
+      document.getElementById('affichageBoucle').innerHTML = html;
+      document.getElementById('boucleSection').style.display = 'block';
     }
 
-    async function chargerKills() {
-      const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
-      let html = '';
-      if (kills.length === 0) {
-        html = '<p>Aucun kill contesté pour le moment.</p>';
-      } else {
-        html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
-        for (const kill of kills) {
-          const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
-          const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
-          const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
-          if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
-            html += `
-              <tr>
-                <td>${tueur[0].pseudo}</td>
-                <td>${cible[0].pseudo}</td>
-                <td>${defi[0].description}</td>
-                <td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td>
-                <td>
-                  <button class="btn btn-success" onclick="validerKill('${kill.id}')">✅ Valider</button>
-                  <button class="btn btn-danger" onclick="invaliderKill('${kill.id}')">❌ Invalider</button>
-                </td>
-              </tr>
-            `;
-          }
-        }
-        html += '</table>';
+    async function lancerPartie() {
+      if (!confirm('🚀 Êtes-vous sûr de vouloir lancer la partie ? Les joueurs recevront leurs cibles.')) {
+        return;
       }
-      document.getElementById('killsTable').innerHTML = html;
-    }
-
-    async function validerKill(idKill) {
       try {
-        const killData = await supabaseSelect('kills_en_attente', `?id=eq.${idKill}`);
-        if (killData.length === 0) {
-          alert('❌ Kill non trouvé');
-          return;
+        for (const item of boucleGeneree) {
+          await supabaseInsert('parties_joueurs', {
+            id_partie: partieEnCours,
+            id_joueur: item.tueur.id,
+            id_tueur: null,
+            id_cible: item.cible.id,
+            id_defi: item.defi.id,
+            statut_joueur: 'vivant'
+          });
         }
-        const kill = killData[0];
-        await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
-        await supabaseUpdate('parties_joueurs',
-          { statut_joueur: 'mort' },
-          `?id_joueur=eq.${kill.id_cible}&id_partie=eq.${kill.id_partie}`
+        await supabaseUpdate('parties',
+          { statut: 'lancee' },
+          `?id=eq.${partieEnCours}`
         );
-        const victime = await supabaseSelect('parties_joueurs',
-          `?id_joueur=eq.${kill.id_cible}&id_partie=eq.${kill.id_partie}`
-        );
-        if (victime.length > 0) {
-          const nouvelleCible = victime[0].id_cible;
-          const nouveauDefi = victime[0].id_defi;
-          await supabaseUpdate('parties_joueurs',
-            {
-              id_cible: nouvelleCible,
-              id_defi: nouveauDefi
-            },
-            `?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
-          );
-          const tueurData = await supabaseSelect('parties_joueurs',
-            `?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
-          );
-          if (tueurData.length > 0) {
-            const victimeInfo = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
-            const pseudoVictime = victimeInfo.length > 0 ? victimeInfo[0].pseudo : 'Inconnu';
-            let historique = tueurData[0].historique_kills || [];
-            historique.push({
-              cible: pseudoVictime,
-              date: new Date().toISOString()
-            });
-            await supabaseUpdate('parties_joueurs',
-              { historique_kills: historique },
-              `?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
-            );
-          }
-        }
-                               dateDeclaration.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
-            html += `
-              <tr>
-                <td>${tueur[0].pseudo}</td>
-                <td>${cible[0].pseudo}</td>
-                <td>${defi[0].description}</td>
-                <td>${dateFormatee}</td>
-                <td>
-                  <button class="btn btn-success" onclick="validerKillDepuisDetails('${kill.id}', '${idPartie}')">✅ Valider</button>
-                  <button class="btn btn-danger" onclick="invaliderKillDepuisDetails('${kill.id}', '${idPartie}')">❌ Invalider</button>
-                </td>
-              </tr>
-            `;
-          }
-        }
-        html += '</table>';
-        document.getElementById('killsEnAttenteDetails').innerHTML = html;
+        alert('✅ Partie lancée avec succès ! Les joueurs peuvent maintenant se connecter.');
+        fermerModal();
+        chargerParties();
       } catch (error) {
         console.error('Erreur:', error);
-        document.getElementById('killsEnAttenteDetails').innerHTML =
-          '<p style="color:red;">Erreur lors du chargement des kills</p>';
+        alert('❌ Erreur lors du lancement de la partie');
       }
     }
 
-    async function chargerHistoriqueKills(idPartie) {
-      try {
-        const killsReussis = await supabaseSelect('kills_en_attente',
-          `?id_partie=eq.${idPartie}&or=(statut_kill.eq.valide,statut_kill.eq.accepte)&order=created_at.desc`
-        );
-        if (killsReussis.length === 0) {
-          document.getElementById('historiqueKillsDetails').innerHTML =
-            '<p style="color:#666;">Aucun kill réussi pour le moment dans cette partie.</p>';
-          return;
-        }
-        const killsParJoueur = {};
-        for (const kill of killsReussis) {
-          const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
-          const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
-          const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
-          if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
-            const tueurData = tueur[0];
-            const cibleData = cible[0];
-            const defiData = defi[0];
-            if (!killsParJoueur[tueurData.pseudo]) {
-              killsParJoueur[tueurData.pseudo] = {
-                nom: `${tueurData.nom} ${tueurData.prenom}`,
-                kills: []
-              };
-            }
-            const dateKill = new Date(kill.created_at);
-            const dateFormatee = dateKill.toLocaleDateString('fr-FR') + ' à ' +
-                               dateKill.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
-            killsParJoueur[tueurData.pseudo].kills.push({
-              cible: cibleData.pseudo,
-              cibleNomComplet: `${cibleData.nom} ${cibleData.prenom}`,
-              defi: defiData.description,
-              date: dateFormatee,
-              statut: kill.statut_kill
-            });
-          }
-        }
-        let html = '';
-        Object.keys(killsParJoueur).forEach(pseudo => {
-          const joueurData = killsParJoueur[pseudo];
-          const nbKills = joueurData.kills.length;
-          html += `
-            <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; margin-bottom:20px; padding:15px;">
-              <h4 style="color:#495057; margin-bottom:15px;">
-                🎯 ${pseudo} (${joueurData.nom}) - ${nbKills} kill${nbKills > 1 ? 's' : ''}
-              </h4>
-              <div style="max-height:200px; overflow-y:auto;">
-                <table style="width:100%; font-size:14px;">
-                  <tr style="background:#e9ecef;">
-                    <th style="padding:8px;">Victime</th>
-                    <th style="padding:8px;">Défi</th>
-                    <th style="padding:8px;">Date</th>
+    function fermerModal() {
+      document.getElementById('modalConfig').style.display = 'none';
+      partieEnCours = null;
+      joueursSelectionnes = [];
+      boucleGeneree = [];
+    }
+                    async function voirDetailsPartie(idPartie, nomPartie) {
                     <th style="padding:8px;">Statut</th>
                   </tr>
           `;
@@ -245,4 +251,60 @@
               </tr>
             `;
           });
-                </html>
+          html += `
+                </table>
+              </div>
+            </div>
+          `;
+        });
+        document.getElementById('historiqueKillsDetails').innerHTML = html;
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('historiqueKillsDetails').innerHTML =
+          '<p style="color:red;">Erreur lors du chargement de l\'historique des kills</p>';
+      }
+    }
+
+    async function validerKillDepuisDetails(idKill, idPartie) {
+      await validerKill(idKill);
+      await chargerKillsEnAttentePartie(idPartie);
+      await chargerBouclePartie(idPartie);
+      await chargerHistoriqueKills(idPartie);
+    }
+
+    async function invaliderKillDepuisDetails(idKill, idPartie) {
+      await invaliderKill(idKill);
+      await chargerKillsEnAttentePartie(idPartie);
+    }
+
+    function fermerModalDetails() {
+      document.getElementById('modalDetails').style.display = 'none';
+      localStorage.removeItem('adminModalDetailsOpen');
+      localStorage.removeItem('adminModalDetailsPartie');
+      localStorage.removeItem('adminModalDetailsNom');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const sectionActive = localStorage.getItem('adminActiveSection') || 'inscriptions';
+      const boutonActif = document.querySelector(`button[onclick*="${sectionActive}"]`);
+      
+      if (boutonActif) {
+        showSection(sectionActive, boutonActif);
+      } else {
+        chargerInscriptions();
+      }
+
+      const modalOuvert = localStorage.getItem('adminModalDetailsOpen');
+      if (modalOuvert === 'true') {
+        const idPartie = localStorage.getItem('adminModalDetailsPartie');
+        const nomPartie = localStorage.getItem('adminModalDetailsNom');
+        if (idPartie && nomPartie) {
+          setTimeout(() => {
+            voirDetailsPartie(idPartie, nomPartie);
+          }, 500);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
