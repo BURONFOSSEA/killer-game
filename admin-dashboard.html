@@ -1,91 +1,755 @@
 <!DOCTYPE html>
-      if (!nomPartie) { alert('⚠️ Veuillez entrer un nom de partie'); return; }
-      try {
-        await supabaseInsert('parties', { nom_partie: nomPartie, statut: 'creee' });
-        alert('✅ Partie créée !');
-        document.getElementById('nomPartie').value = '';
-        chargerParties();
-      } catch (error) {
-        alert('❌ Erreur');
-      }
-    }
 
-    async function chargerParties() {
-      try {
-        const parties = await supabaseSelect('parties');
-        let html = '<table><tr><th>Nom de la partie</th><th>Statut</th><th>Date</th><th>Actions</th></tr>';
-        parties.forEach(partie => {
-          const statutBadge = partie.statut === 'terminee' ? '<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;">🏆 Terminée</span>' : partie.statut;
-          const btnConfig = partie.statut === 'creee' ? `<button class="btn btn-primary" onclick="alert('Configuration simplifiée - à développer')">⚙️ Configurer</button>` : '';
-          const btnDetails = (partie.statut === 'lancee' || partie.statut === 'terminee') ? `<button class="btn btn-success" onclick="alert('Détails - à développer')">👁️ Voir détails</button>` : '';
-          html += `<tr><td>${partie.nom_partie}</td><td>${statutBadge}</td><td>${new Date(partie.created_at).toLocaleDateString('fr-FR')}</td><td>${btnConfig}${btnDetails}</td></tr>`;
-        });
-        html += '</table>';
-        document.getElementById('partiesTable').innerHTML = html;
-      } catch (error) {
-        document.getElementById('partiesTable').innerHTML = '<p>Erreur de chargement</p>';
-      }
-    }
-
-    async function ajouterDefi() {
-      const description = document.getElementById('nouveauDefi').value;
-      if (!description) { alert('⚠️ Veuillez entrer une description'); return; }
-      try {
-        await supabaseInsert('defis', { description });
-        alert('✅ Défi ajouté !');
-        document.getElementById('nouveauDefi').value = '';
-        chargerDefis();
-      } catch (error) {
-        alert('❌ Erreur');
-      }
-    }
-
-    async function chargerDefis() {
-      try {
-        const defis = await supabaseSelect('defis');
-        let html = '<table><tr><th>Description du défi</th></tr>';
-        defis.forEach(defi => {
-          html += `<tr><td>${defi.description}</td></tr>`;
-        });
-        html += '</table>';
-        document.getElementById('defisTable').innerHTML = html;
-      } catch (error) {
-        document.getElementById('defisTable').innerHTML = '<p>Erreur de chargement</p>';
-      }
-    }
-
-    async function chargerKills() {
-      try {
-        const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
-        if (kills.length === 0) {
-          document.getElementById('killsTable').innerHTML = '<p>Aucun kill contesté pour le moment.</p>';
-        } else {
-          let html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
-          for (const kill of kills) {
-            const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
-            const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
-            const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
-            if (tueur[0] && cible[0] && defi[0]) {
-              html += `<tr><td>${tueur[0].pseudo}</td><td>${cible[0].pseudo}</td><td>${defi[0].description}</td><td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td><td><button class="btn btn-success" onclick="alert('Valider - à développer')">✅ Valider</button><button class="btn btn-danger" onclick="alert('Invalider - à développer')">❌ Invalider</button></td></tr>`;
-            }
-          }
-          html += '</table>';
-          document.getElementById('killsTable').innerHTML = html;
-        }
-      } catch (error) {
-        document.getElementById('killsTable').innerHTML = '<p>Erreur de chargement</p>';
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      const sectionActive = localStorage.getItem('adminActiveSection') || 'inscriptions';
-      const boutonActif = document.querySelector(`button[onclick*="${sectionActive}"]`);
-      if (boutonActif) {
-        showSection(sectionActive, boutonActif);
-      } else {
-        chargerInscriptions();
-      }
-    });
-  </script>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard - Killer Game</title>
+<style>
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+body {
+font-family: Arial, sans-serif;
+background: #f5f5f5;
+}
+.header {
+background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+color: white;
+padding: 20px;
+text-align: center;
+}
+.nav {
+background: white;
+padding: 15px;
+box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+display: flex;
+justify-content: center;
+gap: 20px;
+flex-wrap: wrap;
+}
+.nav button {
+padding: 10px 20px;
+border: none;
+border-radius: 5px;
+background: #f5576c;
+color: white;
+cursor: pointer;
+font-weight: bold;
+transition: background 0.3s;
+}
+.nav button:hover {
+background: #e04455;
+}
+.nav button.active {
+background: #333;
+}
+.content {
+max-width: 1200px;
+margin: 30px auto;
+padding: 0 20px;
+}
+.section {
+display: none;
+background: white;
+padding: 30px;
+border-radius: 10px;
+box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.section.active {
+display: block;
+}
+h2 {
+color: #f5576c;
+margin-bottom: 20px;
+}
+table {
+width: 100%;
+border-collapse: collapse;
+margin-top: 20px;
+}
+th, td {
+padding: 12px;
+text-align: left;
+border-bottom: 1px solid #ddd;
+}
+th {
+background: #f5576c;
+color: white;
+}
+tr:hover {
+background: #f9f9f9;
+}
+.btn {
+padding: 8px 15px;
+border: none;
+border-radius: 5px;
+cursor: pointer;
+font-weight: bold;
+margin-right: 5px;
+}
+.btn-success {
+background: #28a745;
+color: white;
+}
+.btn-danger {
+background: #dc3545;
+color: white;
+}
+.btn-primary {
+background: #007bff;
+color: white;
+}
+.form-group {
+margin-bottom: 15px;
+}
+.form-group label {
+display: block;
+margin-bottom: 5px;
+font-weight: bold;
+}
+.form-group input, .form-group select {
+width: 100%;
+padding: 10px;
+border: 2px solid #ddd;
+border-radius: 5px;
+font-size: 16px;
+}
+</style>
+</head>
+<body>
+<script>
+if (localStorage.getItem('isAdmin') !== 'true') {
+window.location.href = 'admin-login.html';
+}
+</script>
+<div class="header">
+<h1>🎯 Admin Dashboard - Killer Game</h1>
+<p>Gérez vos parties et joueurs</p>
+</div>
+<div class="nav">
+<button onclick="showSection('inscriptions',this)" class="active">📝 Inscriptions</button>
+<button onclick="showSection('joueurs',this)">👥 Joueurs</button>
+<button onclick="showSection('parties',this)">🎮 Parties</button>
+<button onclick="showSection('defis',this)">💡 Défis</button>
+<button onclick="showSection('kills',this)">⚔️ Kills</button>
+</div>
+<div class="content">
+<div id="inscriptions" class="section active">
+<h2>📝 Inscriptions en attente</h2>
+<div id="inscriptionsTable"></div>
+</div>
+<div id="joueurs" class="section">
+<h2>👥 Liste des joueurs validés</h2>
+<div id="joueursTable"></div>
+</div>
+<div id="parties" class="section">
+<h2>🎮 Gestion des parties</h2>
+<div style="margin-bottom: 30px;">
+<h3>Créer une nouvelle partie</h3>
+<div class="form-group">
+<label>Nom de la partie</label>
+<input type="text" id="nomPartie" placeholder="Ex: Partie de Noël 2024">
+</div>
+<button class="btn btn-primary" onclick="creerPartie()">Créer la partie</button>
+</div>
+<div id="partiesTable"></div>
+</div>
+<div id="defis" class="section">
+<h2>💡 Gestion des défis</h2>
+<div style="margin-bottom: 30px;">
+<h3>Ajouter un nouveau défi</h3>
+<div class="form-group">
+<label>Description du défi</label>
+<input type="text" id="nouveauDefi" placeholder="Ex: Faire un high-five à votre cible">
+</div>
+<button class="btn btn-primary" onclick="ajouterDefi()">Ajouter le défi</button>
+</div>
+<div id="defisTable"></div>
+</div>
+<div id="kills" class="section">
+<h2>⚔️ Kills contestés</h2>
+<div id="killsTable"></div>
+</div>
+</div>
+<div id="modalConfig" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000;">
+<div style="background:white; max-width:800px; margin:50px auto; padding:30px; border-radius:10px; max-height:80vh; overflow-y:auto;">
+<h2>⚙️ Configuration de la partie</h2>
+<p id="nomPartieConfig" style="color:#666; margin-bottom:20px;"></p>
+<h3>1️⃣ Sélectionner les joueurs</h3>
+<div id="listeJoueursConfig"></div>
+<button class="btn btn-primary" onclick="genererBoucle()" style="margin-top:20px;">
+🔄 Générer la boucle Tueur/Cible
+</button>
+<div id="boucleSection" style="display:none; margin-top:30px;">
+<h3>2️⃣ Boucle Tueur → Cible → Défi</h3>
+<div id="affichageBoucle"></div>
+<button class="btn btn-success" onclick="lancerPartie()" style="margin-top:20px;">
+🚀 Lancer la partie !
+</button>
+</div>
+<button class="btn btn-danger" onclick="fermerModal()" style="margin-top:20px;">
+❌ Fermer
+</button>
+</div>
+</div>
+<div id="modalDetails" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000;">
+<div style="background:white; max-width:1000px; margin:20px auto; padding:30px; border-radius:10px; max-height:90vh; overflow-y:auto;">
+<h2>👁️ Détails de la partie</h2>
+<p id="nomPartieDetails" style="color:#666; margin-bottom:20px;"></p>
+<h3>🔄 Boucle des joueurs</h3>
+<div id="boucleDetails" style="margin-bottom:30px;"></div>
+<h3>⚔️ Kills en attente de validation</h3>
+<div id="killsEnAttenteDetails" style="margin-bottom:30px;"></div>
+<h3>📜 Historique des kills réussis</h3>
+<div id="historiqueKillsDetails" style="margin-bottom:30px;"></div>
+<button class="btn btn-danger" onclick="fermerModalDetails()" style="margin-top:20px;">
+❌ Fermer
+</button>
+</div>
+</div>
+<script src="supabaseClient.js"></script>
+<script>
+function showSection(sectionName,element) {
+// Sauvegarder la section active
+localStorage.setItem('adminActiveSection', sectionName);
+document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+document.getElementById(sectionName).classList.add('active');
+element.classList.add('active');
+if (sectionName === 'inscriptions') chargerInscriptions();
+if (sectionName === 'joueurs') chargerJoueurs();
+if (sectionName === 'parties') chargerParties();
+if (sectionName === 'defis') chargerDefis();
+if (sectionName === 'kills') chargerKills();
+if (sectionName === 'classement') chargerListePartiesClassement();
+}
+async function chargerInscriptions() {
+const inscriptions = await supabaseSelect('inscriptions_attente', '?statut=eq.en_attente');
+let html = '<table><tr><th>Nom</th><th>Prénom</th><th>Pseudo</th><th>Téléphone</th><th>Actions</th></tr>';
+inscriptions.forEach(inscription => {
+html += `
+<tr>
+<td>${inscription.nom}</td>
+<td>${inscription.prenom}</td>
+<td>${inscription.pseudo}</td>
+<td>${inscription.telephone}</td>
+<td>
+<button class="btn btn-success" onclick="validerInscription('${inscription.id}', '${inscription.telephone}', '${inscription.nom}', '${inscription.prenom}', '${inscription.pseudo}', '${inscription.mot_de_passe}')">✅ Valider</button>
+<button class="btn btn-danger" onclick="refuserInscription('${inscription.id}')">❌ Refuser</button>
+</td>
+</tr>
+`;
+});
+html += '</table>';
+document.getElementById('inscriptionsTable').innerHTML = html;
+}
+async function validerInscription(id, telephone, nom, prenom, pseudo, mdp) {
+await supabaseInsert('joueurs', {
+telephone: telephone,
+nom: nom,
+prenom: prenom,
+pseudo: pseudo,
+mot_de_passe: mdp,
+statut_global: 'actif'
+});
+await supabaseUpdate('inscriptions_attente', { statut: 'valide' }, `?id=eq.${id}`);
+alert('✅ Joueur validé !');
+chargerInscriptions();
+}
+async function refuserInscription(id) {
+await supabaseUpdate('inscriptions_attente', { statut: 'refuse' }, `?id=eq.${id}`);
+alert('❌ Inscription refusée');
+chargerInscriptions();
+}
+async function chargerJoueurs() {
+const joueurs = await supabaseSelect('joueurs');
+let html = '<table><tr><th>Nom</th><th>Prénom</th><th>Pseudo</th><th>Téléphone</th><th>Statut</th></tr>';
+joueurs.forEach(joueur => {
+html += `
+<tr>
+<td>${joueur.nom}</td>
+<td>${joueur.prenom}</td>
+<td>${joueur.pseudo}</td>
+<td>${joueur.telephone}</td>
+<td>${joueur.statut_global}</td>
+</tr>
+`;
+});
+html += '</table>';
+document.getElementById('joueursTable').innerHTML = html;
+}
+async function creerPartie() {
+const nomPartie = document.getElementById('nomPartie').value;
+if (!nomPartie) {
+alert('⚠️ Veuillez entrer un nom de partie');
+return;
+}
+await supabaseInsert('parties', {
+nom_partie: nomPartie,
+statut: 'creee'
+});
+alert('✅ Partie créée !');
+document.getElementById('nomPartie').value = '';
+chargerParties();
+}
+async function chargerParties() {
+const parties = await supabaseSelect('parties');
+let html = '<table><tr><th>Nom de la partie</th><th>Statut</th><th>Date</th><th>Actions</th></tr>';
+parties.forEach(partie => {
+html += `
+<tr>
+<td>${partie.nom_partie}</td>
+<td>
+${partie.statut === 'terminee' ?
+'<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;">🏆 Terminée</span>' :
+partie.statut
+}
+</td>
+<td>${new Date(partie.created_at).toLocaleDateString('fr-FR')}</td>
+<td>
+${partie.statut === 'creee' ? `<button class="btn btn-primary" onclick="configurerPartie('${partie.id}')">⚙️ Configurer</button>` : ''}
+${partie.statut === 'lancee' ? `<button class="btn btn-success" onclick="voirDetailsPartie('${partie.id}', '${partie.nom_partie}')">👁️ Voir détails</button>` : ''}
+</td>
+</tr>
+`;
+});
+html += '</table>';
+document.getElementById('partiesTable').innerHTML = html;
+}
+async function ajouterDefi() {
+const description = document.getElementById('nouveauDefi').value;
+if (!description) {
+alert('⚠️ Veuillez entrer une description');
+return;
+}
+await supabaseInsert('defis', {
+description: description
+});
+alert('✅ Défi ajouté !');
+document.getElementById('nouveauDefi').value = '';
+chargerDefis();
+}
+async function chargerDefis() {
+const defis = await supabaseSelect('defis');
+let html = '<table><tr><th>Description du défi</th></tr>';
+defis.forEach(defi => {
+html += `
+<tr>
+<td>${defi.description}</td>
+</tr>
+`;
+});
+html += '</table>';
+document.getElementById('defisTable').innerHTML = html;
+}
+async function chargerKills() {
+const kills = await supabaseSelect('kills_en_attente', '?statut_kill=eq.conteste');
+let html = '';
+if (kills.length === 0) {
+html = '<p>Aucun kill contesté pour le moment.</p>';
+} else {
+html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Date</th><th>Actions</th></tr>';
+for (const kill of kills) {
+const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
+html += `
+<tr>
+<td>${tueur[0].pseudo}</td>
+<td>${cible[0].pseudo}</td>
+<td>${defi[0].description}</td>
+<td>${new Date(kill.created_at).toLocaleDateString('fr-FR')}</td>
+<td>
+<button class="btn btn-success" onclick="validerKill('${kill.id}')">✅ Valider</button>
+<button class="btn btn-danger" onclick="invaliderKill('${kill.id}')">❌ Invalider</button>
+</td>
+</tr>
+`;
+}
+}
+html += '</table>';
+}
+document.getElementById('killsTable').innerHTML = html;
+}
+async function validerKill(idKill) {
+try {
+// Récupérer les infos du kill
+const killData = await supabaseSelect('kills_en_attente', `?id=eq.${idKill}`);
+if (killData.length === 0) {
+alert('❌ Kill non trouvé');
+return;
+}
+const kill = killData[0];
+// 1. Mettre à jour le statut du kill
+await supabaseUpdate('kills_en_attente', { statut_kill: 'valide' }, `?id=eq.${idKill}`);
+// 2. Mettre à jour le statut de la cible (elle est morte)
+await supabaseUpdate('parties_joueurs',
+{ statut_joueur: 'mort' },
+`?id_joueur=eq.${kill.id_cible}&id_partie=eq.${kill.id_partie}`
+);
+// 3. Récupérer la cible de la victime (celle du joueur mort)
+const victime = await supabaseSelect('parties_joueurs',
+`?id_joueur=eq.${kill.id_cible}&id_partie=eq.${kill.id_partie}`
+);
+if (victime.length > 0) {
+const nouvelleCible = victime[0].id_cible;
+const nouveauDefi = victime[0].id_defi;
+// 4. Assigner cette cible au tueur
+await supabaseUpdate('parties_joueurs',
+{
+id_cible: nouvelleCible,
+id_defi: nouveauDefi
+},
+`?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
+);
+// 5. Mettre à jour l'historique du tueur
+const tueurData = await supabaseSelect('parties_joueurs',
+`?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
+);
+if (tueurData.length > 0) {
+// Récupérer le pseudo de la victime
+const victimeInfo = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+const pseudoVictime = victimeInfo.length > 0 ? victimeInfo[0].pseudo : 'Inconnu';
+let historique = tueurData[0].historique_kills || [];
+historique.push({
+cible: pseudoVictime,
+date: new Date().toISOString()
+});
+await supabaseUpdate('parties_joueurs',
+{ historique_kills: historique },
+`?id_joueur=eq.${kill.id_tueur}&id_partie=eq.${kill.id_partie}`
+);
+}
+}
+alert('✅ Kill validé par l\'admin ! Le joueur a été éliminé et le tueur a récupéré une nouvelle cible.');
+chargerKills();
+} catch (error) {
+console.error('Erreur:', error);
+alert('❌ Erreur lors de la validation du kill');
+}
+}
+async function invaliderKill(idKill) {
+try {
+await supabaseUpdate('kills_en_attente', { statut_kill: 'refuse' }, `?id=eq.${idKill}`);
+alert('❌ Kill invalidé par l\'admin');
+chargerKills();
+} catch (error) {
+console.error('Erreur:', error);
+alert('❌ Erreur lors de l\'invalidation du kill');
+}
+}
+let partieEnCours = null;
+let joueursSelectionnes = [];
+let boucleGeneree = [];
+async function configurerPartie(idPartie) {
+partieEnCours = idPartie;
+const parties = await supabaseSelect('parties', `?id=eq.${idPartie}`);
+document.getElementById('nomPartieConfig').textContent = `Partie : ${parties[0].nom_partie}`;
+const joueurs = await supabaseSelect('joueurs', '?statut_global=eq.actif');
+let html = '<div style="max-height:300px; overflow-y:auto;">';
+joueurs.forEach(joueur => {
+html += `
+<label style="display:block; padding:10px; border:1px solid #ddd; margin-bottom:5px; cursor:pointer;">
+<input type="checkbox" value="${joueur.id}" onchange="toggleJoueur(this, '${joueur.id}', '${joueur.pseudo}')">
+${joueur.pseudo} (${joueur.nom} ${joueur.prenom})
+</label>
+`;
+});
+html += '</div>';
+document.getElementById('listeJoueursConfig').innerHTML = html;
+document.getElementById('modalConfig').style.display = 'block';
+}
+function toggleJoueur(checkbox, id, pseudo) {
+if (checkbox.checked) {
+joueursSelectionnes.push({ id, pseudo });
+} else {
+joueursSelectionnes = joueursSelectionnes.filter(j => j.id !== id);
+}
+}
+async function genererBoucle() {
+if (joueursSelectionnes.length < 3) {
+alert('⚠️ Il faut au moins 3 joueurs pour créer une partie');
+return;
+}
+let joueursMelanges = [...joueursSelectionnes].sort(() => Math.random() - 0.5);
+const defis = await supabaseSelect('defis');
+boucleGeneree = [];
+for (let i = 0; i < joueursMelanges.length; i++) {
+const tueur = joueursMelanges[i];
+const cible = joueursMelanges[(i + 1) % joueursMelanges.length];
+const defi = defis[Math.floor(Math.random() * defis.length)];
+boucleGeneree.push({
+tueur,
+cible,
+defi
+});
+}
+let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
+boucleGeneree.forEach(item => {
+html += `
+<tr>
+<td>${item.tueur.pseudo}</td>
+<td>→</td>
+<td>${item.cible.pseudo}</td>
+<td>${item.defi.description}</td>
+</tr>
+`;
+});
+html += '</table>';
+document.getElementById('affichageBoucle').innerHTML = html;
+document.getElementById('boucleSection').style.display = 'block';
+}
+async function lancerPartie() {
+if (!confirm('🚀 Êtes-vous sûr de vouloir lancer la partie ? Les joueurs recevront leurs cibles.')) {
+return;
+}
+try {
+for (const item of boucleGeneree) {
+await supabaseInsert('parties_joueurs', {
+id_partie: partieEnCours,
+id_joueur: item.tueur.id,
+id_tueur: null,
+id_cible: item.cible.id,
+id_defi: item.defi.id,
+statut_joueur: 'vivant'
+});
+}
+await supabaseUpdate('parties',
+{ statut: 'lancee' },
+`?id=eq.${partieEnCours}`
+);
+alert('✅ Partie lancée avec succès ! Les joueurs peuvent maintenant se connecter.');
+fermerModal();
+chargerParties();
+} catch (error) {
+console.error('Erreur:', error);
+alert('❌ Erreur lors du lancement de la partie');
+}
+}
+function fermerModal() {
+document.getElementById('modalConfig').style.display = 'none';
+partieEnCours = null;
+joueursSelectionnes = [];
+boucleGeneree = [];
+}
+// Voir les détails d'une partie lancée
+async function voirDetailsPartie(idPartie, nomPartie) {
+// Sauvegarder l'état du modal
+localStorage.setItem('adminModalDetailsOpen', 'true');
+localStorage.setItem('adminModalDetailsPartie', idPartie);
+localStorage.setItem('adminModalDetailsNom', nomPartie);
+document.getElementById('nomPartieDetails').textContent = `Partie : ${nomPartie}`;
+// Charger la boucle des joueurs
+await chargerBouclePartie(idPartie);
+// Charger les kills en attente
+await chargerKillsEnAttentePartie(idPartie);
+document.getElementById('modalDetails').style.display = 'block';
+}
+// Charger la boucle des joueurs pour une partie
+async function chargerBouclePartie(idPartie) {
+try {
+const partiesJoueurs = await supabaseSelect('parties_joueurs',
+`?id_partie=eq.${idPartie}&select=*,joueurs!parties_joueurs_id_joueur_fkey(nom,prenom,pseudo),cibles:joueurs!parties_joueurs_id_cible_fkey(nom,prenom,pseudo),defis(*)`
+);
+let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th><th>Statut</th></tr>';
+partiesJoueurs.forEach(pj => {
+const tueur = pj.joueurs;
+const cible = pj.cibles;
+const defi = pj.defis;
+const statutBadge = pj.statut_joueur === 'vivant' ?
+'<span style="background:#28a745;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">✅ Vivant</span>' :
+'<span style="background:#dc3545;color:white;padding:4px 8px;border-radius:12px;font-size:12px;">💀 Mort</span>';
+html += `
+<tr>
+<td>${tueur.pseudo} (${tueur.nom} ${tueur.prenom})</td>
+<td>→</td>
+<td>${cible.pseudo} (${cible.nom} ${cible.prenom})</td>
+<td>${defi.description}</td>
+<td>${statutBadge}</td>
+</tr>
+`;
+});
+html += '</table>';
+// Vérifier si la partie est terminée
+const joueursVivants = partiesJoueurs.filter(pj => pj.statut_joueur === 'vivant');
+if (joueursVivants.length === 1) {
+// Il ne reste qu'un survivant = partie terminée
+const gagnant = joueursVivants[0].joueurs;
+html += `
+<div style="background:#d4edda; border:2px solid #28a745; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
+<h3 style="color:#28a745; margin-bottom:15px;">🏆 PARTIE TERMINÉE ! 🏆</h3>
+<p style="font-size:18px; margin-bottom:10px;"><strong>Gagnant : ${gagnant.pseudo}</strong></p>
+<p style="color:#666;">(${gagnant.nom} ${gagnant.prenom})</p>
+<div style="margin-top:15px; font-size:30px;">🎉 👑 🎉</div>
+</div>
+`;
+} else if (joueursVivants.length === 0) {
+html += `
+<div style="background:#f8d7da; border:2px solid #dc3545; padding:20px; margin-top:20px; border-radius:10px; text-align:center;">
+<h3 style="color:#dc3545;">⚠️ ANOMALIE DÉTECTÉE</h3>
+<p>Aucun joueur vivant dans cette partie. Vérifiez les données.</p>
+</div>
+`;
+}
+document.getElementById('boucleDetails').innerHTML = html;
+} catch (error) {
+console.error('Erreur:', error);
+document.getElementById('boucleDetails').innerHTML = '<p style="color:red;">Erreur lors du chargement de la boucle</p>';
+}
+}
+// Charger les kills en attente pour une partie
+async function chargerKillsEnAttentePartie(idPartie) {
+try {
+const kills = await supabaseSelect('kills_en_attente',
+`?id_partie=eq.${idPartie}&statut_kill=eq.en_attente`
+);
+if (kills.length === 0) {
+document.getElementById('killsEnAttenteDetails').innerHTML =
+'<p style="color:#666;">Aucun kill en attente de validation pour cette partie.</p>';
+return;
+}
+let html = '<table><tr><th>Tueur</th><th>Cible</th><th>Défi</th><th>Déclaré le</th><th>Actions</th></tr>';
+for (const kill of kills) {
+const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
+const dateDeclaration = new Date(kill.created_at);
+const dateFormatee = dateDeclaration.toLocaleDateString('fr-FR') + ' à ' +
+dateDeclaration.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+html += `
+<tr>
+<td>${tueur[0].pseudo}</td>
+<td>${cible[0].pseudo}</td>
+<td>${defi[0].description}</td>
+<td>${dateFormatee}</td>
+<td>
+<button class="btn btn-success" onclick="validerKillDepuisDetails('${kill.id}', '${idPartie}')">✅ Valider</button>
+<button class="btn btn-danger" onclick="invaliderKillDepuisDetails('${kill.id}', '${idPartie}')">❌ Invalider</button>
+</td>
+</tr>
+`;
+}
+}
+html += '</table>';
+document.getElementById('killsEnAttenteDetails').innerHTML = html;
+} catch (error) {
+console.error('Erreur:', error);
+document.getElementById('killsEnAttenteDetails').innerHTML =
+'<p style="color:red;">Erreur lors du chargement des kills</p>';
+}
+}
+// Charger l'historique des kills réussis pour une partie
+async function chargerHistoriqueKills(idPartie) {
+try {
+// Récupérer tous les kills validés ou acceptés pour cette partie
+const killsReussis = await supabaseSelect('kills_en_attente',
+`?id_partie=eq.${idPartie}&or=(statut_kill.eq.valide,statut_kill.eq.accepte)&order=created_at.desc`
+);
+if (killsReussis.length === 0) {
+document.getElementById('historiqueKillsDetails').innerHTML =
+'<p style="color:#666;">Aucun kill réussi pour le moment dans cette partie.</p>';
+return;
+}
+// Grouper les kills par joueur
+const killsParJoueur = {};
+for (const kill of killsReussis) {
+const tueur = await supabaseSelect('joueurs', `?id=eq.${kill.id_tueur}`);
+const cible = await supabaseSelect('joueurs', `?id=eq.${kill.id_cible}`);
+const defi = await supabaseSelect('defis', `?id=eq.${kill.id_defi}`);
+if (tueur.length > 0 && cible.length > 0 && defi.length > 0) {
+const tueurData = tueur[0];
+const cibleData = cible[0];
+const defiData = defi[0];
+if (!killsParJoueur[tueurData.pseudo]) {
+killsParJoueur[tueurData.pseudo] = {
+nom: `${tueurData.nom} ${tueurData.prenom}`,
+kills: []
+};
+}
+const dateKill = new Date(kill.created_at);
+const dateFormatee = dateKill.toLocaleDateString('fr-FR') + ' à ' +
+dateKill.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+killsParJoueur[tueurData.pseudo].kills.push({
+cible: cibleData.pseudo,
+cibleNomComplet: `${cibleData.nom} ${cibleData.prenom}`,
+defi: defiData.description,
+date: dateFormatee,
+statut: kill.statut_kill
+});
+}
+}
+// Générer le HTML
+let html = '';
+Object.keys(killsParJoueur).forEach(pseudo => {
+const joueurData = killsParJoueur[pseudo];
+const nbKills = joueurData.kills.length;
+html += `
+<div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; margin-bottom:20px; padding:15px;">
+<h4 style="color:#495057; margin-bottom:15px;">
+🎯 ${pseudo} (${joueurData.nom}) - ${nbKills} kill${nbKills > 1 ? 's' : ''}
+</h4>
+<div style="max-height:200px; overflow-y:auto;">
+<table style="width:100%; font-size:14px;">
+<tr style="background:#e9ecef;">
+<th style="padding:8px;">Victime</th>
+<th style="padding:8px;">Défi</th>
+<th style="padding:8px;">Date</th>
+<th style="padding:8px;">Statut</th>
+</tr>
+`;
+joueurData.kills.forEach(kill => {
+const statutBadge = kill.statut === 'valide' ?
+'<span style="background:#007bff;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Admin</span>' :
+'<span style="background:#28a745;color:white;padding:2px 6px;border-radius:8px;font-size:11px;">Accepté</span>';
+html += `
+}
+// Valider un kill depuis les détails de la partie
+async function validerKillDepuisDetails(idKill, idPartie) {
+await validerKill(idKill);
+// Recharger les détails de la partie
+await chargerKillsEnAttentePartie(idPartie);
+await chargerBouclePartie(idPartie);
+}
+// Invalider un kill depuis les détails de la partie
+async function invaliderKillDepuisDetails(idKill, idPartie) {
+await invaliderKill(idKill);
+// Recharger les détails de la partie
+await chargerKillsEnAttentePartie(idPartie);
+}
+// Fermer le modal des détails
+function fermerModalDetails() {
+document.getElementById('modalDetails').style.display = 'none';
+// Nettoyer le localStorage
+localStorage.removeItem('adminModalDetailsOpen');
+localStorage.removeItem('adminModalDetailsPartie');
+localStorage.removeItem('adminModalDetailsNom');
+}
+// Charger la section active au démarrage de la page
+document.addEventListener('DOMContentLoaded', function() {
+const sectionActive = localStorage.getItem('adminActiveSection') || 'inscriptions';
+const boutonActif = document.querySelector`button[onclick*="${sectionActive}"]`);
+if (boutonActif) {
+showSection(sectionActive, boutonActif);
+} else {
+chargerInscriptions();
+}
+// Vérifier si le modal détails était ouvert
+const modalOuvert = localStorage.getItem('adminModalDetailsOpen');
+if (modalOuvert === 'true') {
+const idPartie = localStorage.getItem('adminModalDetailsPartie');
+const nomPartie = localStorage.getItem('adminModalDetailsNom');
+if (idPartie && nomPartie) {
+setTimeout(() => {
+voirDetailsPartie(idPartie, nomPartie);
+}, 500); // Petit délai pour laisser la page se charger
+}
+}
+});
+</script>
 </body>
 </html>
