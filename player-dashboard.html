@@ -148,7 +148,46 @@
       padding: 10px;
       font-size: 14px;
     }
-    
+    .btn-retour {
+  background: #667eea;
+  color: white;
+  border: 2px solid #667eea;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.btn-retour:hover {
+  background: white;
+  color: #667eea;
+}
+
+.header {
+  position: relative;
+}
+
+#selecteurPartie select {
+  background: white;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.aucune-partie, .erreur {
+  text-align: center;
+  padding: 50px 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin: 20px 0;
+  border-left: 4px solid #667eea;
+}
+
+.erreur {
+  color: #dc3545;
+  border-left-color: #dc3545;
+}
     .alert {
       padding: 15px;
       border-radius: 8px;
@@ -226,11 +265,27 @@
   </div>
 
   <div id="mainContent" class="container hidden">
-    <div class="header">
-      <h1>🎯 Killer Game</h1>
-      <p>Bienvenue <strong id="joueurPseudo"></strong></p>
-      <button class="btn btn-logout" onclick="deconnexion()">🚪 Se déconnecter</button>
-    </div>
+<div class="header">
+  <!-- Bouton retour vers l'accueil -->
+  <div style="position: absolute; top: 15px; left: 15px;">
+    <button onclick="retourAccueil()" class="btn-retour">
+      🏠 Accueil
+    </button>
+  </div>
+  
+  <h1>🎯 Killer Game</h1>
+  <p id="infosJoueur">Bienvenue <strong id="joueurPseudo"></strong></p>
+  
+  <!-- Menu déroulant pour changer de partie -->
+  <div id="selecteurPartie" style="margin-top: 15px; display: none;">
+    <label for="partieSelect" style="color: #667eea; margin-right: 10px; font-weight: bold;">Changer de partie :</label>
+    <select id="partieSelect" onchange="changerPartie()" style="padding: 8px; border-radius: 5px; border: 1px solid #ddd; min-width: 200px;">
+      <option value="">Sélectionner une partie...</option>
+    </select>
+  </div>
+  
+  <button class="btn btn-logout" onclick="deconnexion()" style="margin-top: 10px;">🚪 Se déconnecter</button>
+</div>
     
     <!-- Alertes de notification -->
     <div id="alertContainer"></div>
@@ -325,6 +380,82 @@
     let joueurPseudo = localStorage.getItem('joueurPseudo');
     let partieJoueurData = null;
     let killEnAttente = null;
+
+    // Variables pour gérer les parties multiples
+let partiesJoueur = [];
+let partieActuelle = null;
+
+    // Fonction pour retourner à l'accueil
+function retourAccueil() {
+  if (confirm('🏠 Voulez-vous vraiment retourner à la page d\'accueil ?')) {
+    window.location.href = 'index.html'; // Remplacez par votre page d'accueil
+  }
+}
+
+// Fonction pour charger toutes les parties du joueur
+async function chargerPartiesJoueur() {
+  try {
+    if (!joueurId) return;
+
+    // Récupérer toutes les parties où le joueur participe
+    partiesJoueur = await supabaseSelect('parties_joueurs', 
+      `?id_joueur=eq.${joueurId}&select=*,parties(id,nom_partie,statut)`
+    );
+
+    if (partiesJoueur.length > 1) {
+      // Afficher le sélecteur seulement s'il y a plusieurs parties
+      document.getElementById('selecteurPartie').style.display = 'block';
+      
+      // Remplir le menu déroulant
+      const select = document.getElementById('partieSelect');
+      select.innerHTML = '<option value="">Sélectionner une partie...</option>';
+      
+      partiesJoueur.forEach(pj => {
+        const partie = pj.parties;
+        const option = document.createElement('option');
+        option.value = partie.id;
+        option.textContent = `${partie.nom_partie} (${partie.statut})`;
+        
+        // Marquer la partie actuelle comme sélectionnée
+        if (partieActuelle && partieActuelle == partie.id) {
+          option.selected = true;
+        }
+        
+        select.appendChild(option);
+      });
+    } else if (partiesJoueur.length === 1) {
+      // Une seule partie, la définir comme actuelle
+      partieActuelle = partiesJoueur[0].parties.id;
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des parties:', error);
+  }
+}
+
+// Fonction pour changer de partie
+async function changerPartie() {
+  const select = document.getElementById('partieSelect');
+  const nouvellePartieId = select.value;
+  
+  if (!nouvellePartieId) return;
+  
+  // Confirmer le changement
+  const partieSelectionnee = partiesJoueur.find(pj => pj.parties.id == nouvellePartieId);
+  if (partieSelectionnee && confirm(`🔄 Changer pour la partie "${partieSelectionnee.parties.nom_partie}" ?`)) {
+    // Sauvegarder la nouvelle partie actuelle
+    localStorage.setItem('partieActuelle', nouvellePartieId);
+    partieActuelle = nouvellePartieId;
+    
+    // Recharger les données pour cette partie
+    await chargerDashboard();
+    
+    afficherAlerte('success', `✅ Vous êtes maintenant dans la partie "${partieSelectionnee.parties.nom_partie}"`);
+  } else {
+    // Remettre l'ancienne sélection
+    select.value = partieActuelle || '';
+  }
+}
+
     
     // Fonction de déconnexion
     function deconnexion() {
@@ -356,25 +487,46 @@
       document.getElementById('historiqueSection').classList.remove('hidden');
     }
     // Fonction principale de chargement
-    async function chargerDashboard() {
-      try {
-        // Afficher le pseudo
-        document.getElementById('joueurPseudo').textContent = joueurPseudo;
+async function chargerDashboard() {
+  try {
+    // Afficher le pseudo
+    document.getElementById('joueurPseudo').textContent = joueurPseudo;
+    
+    // Charger toutes les parties du joueur
+    await chargerPartiesJoueur();
+    
+// Mettre à jour les infos avec le nom de partie si disponible
+if (partieActuelle && partiesJoueur.length > 0) {
+  const partieInfo = partiesJoueur.find(p => p.parties.id == partieActuelle);
+  if (partieInfo) {
+    document.getElementById('infosJoueur').innerHTML = 
+      `Bienvenue <strong>${joueurPseudo}</strong> - Partie: <strong>${partieInfo.parties.nom_partie}</strong>`;
+  }
+}
+    
+    // Récupérer les infos de la partie actuelle
+    let partiesJoueurFiltered;
+    if (partieActuelle) {
+      partiesJoueurFiltered = await supabaseSelect('parties_joueurs',
+        `?id_joueur=eq.${joueurId}&id_partie=eq.${partieActuelle}&select=*,parties(*),joueurs!parties_joueurs_id_cible_fkey(nom,prenom,pseudo),defis(*)`
+      );
+    } else {
+      partiesJoueurFiltered = [];
+    }
         
-        // Récupérer les infos de la partie en cours du joueur
-        const partiesJoueur = await supabaseSelect('parties_joueurs', 
-          `?id_joueur=eq.${joueurId}&select=*,parties(*),joueurs!parties_joueurs_id_cible_fkey(nom,prenom,pseudo),defis(*)`
-        );
-        
-        if (partiesJoueur.length === 0) {
+if (partiesJoueurFiltered.length === 0) {
           // Aucune partie en cours
           document.getElementById('waitingSection').classList.remove('hidden');
           document.getElementById('statutBadge').textContent = '⏳ En attente';
           document.getElementById('statutBadge').className = 'status-badge status-attente';
-        } else {
-          partieJoueurData = partiesJoueur[0];
-
-          afficherHistorique();
+ } else {
+  partieJoueurData = partiesJoueurFiltered[0];
+  
+  // Mettre à jour les infos avec le nom de partie
+  document.getElementById('infosJoueur').innerHTML = 
+    `Bienvenue <strong>${joueurPseudo}</strong> - Partie: <strong>${partieJoueurData.parties.nom_partie}</strong>`;
+  
+  afficherHistorique();
           
           // Vérifier si la partie est lancée
           if (partieJoueurData.parties.statut !== 'lancee') {
@@ -671,8 +823,11 @@ setInterval(async () => {
   }
 }, 10000);
     
-    // Charger le dashboard au démarrage
-    chargerDashboard();
+// Initialiser la partie actuelle au démarrage
+partieActuelle = localStorage.getItem('partieActuelle');
+
+// Charger le dashboard au démarrage
+chargerDashboard();
   </script>
 </body>
 </html>
