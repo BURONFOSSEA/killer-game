@@ -510,7 +510,16 @@ async function genererBoucle() {
             defi
         });
     }
-
+// Modifier un défi dans la boucle
+async function modifierDefi(index, nouveauDefiId) {
+    const defis = await supabaseSelect('defis');
+    const nouveauDefi = defis.find(d => d.id == nouveauDefiId);
+    
+    if (nouveauDefi) {
+        boucleGeneree[index].defi = nouveauDefi;
+        afficherStatsDefis(); // Mettre à jour les stats
+    }
+}
     // Affichage du résultat avec menus déroulants pour modifier les défis
     let html = '<table><tr><th>Tueur</th><th>→</th><th>Cible</th><th>Défi</th></tr>';
     
