@@ -442,14 +442,36 @@ async function changerPartie() {
   // Confirmer le changement
   const partieSelectionnee = partiesJoueur.find(pj => pj.parties.id == nouvellePartieId);
   if (partieSelectionnee && confirm(`🔄 Changer pour la partie "${partieSelectionnee.parties.nom_partie}" ?`)) {
-    // Sauvegarder la nouvelle partie actuelle
-    localStorage.setItem('partieActuelle', nouvellePartieId);
-    partieActuelle = nouvellePartieId;
-    
-    // Recharger les données pour cette partie
-    await chargerDashboard();
-    
-    afficherAlerte('success', `✅ Vous êtes maintenant dans la partie "${partieSelectionnee.parties.nom_partie}"`);
+    try {
+      // Sauvegarder la nouvelle partie actuelle
+      localStorage.setItem('partieActuelle', nouvellePartieId);
+      partieActuelle = nouvellePartieId;
+      
+      // Réinitialiser les variables globales
+      partieJoueurData = null;
+      killEnAttente = null;
+      
+      // Masquer toutes les sections
+      document.getElementById('targetSection').classList.add('hidden');
+      document.getElementById('waitingSection').classList.add('hidden');
+      document.getElementById('deadSection').classList.add('hidden');
+      document.getElementById('victorySection').classList.add('hidden');
+      document.getElementById('killAlertSection').classList.add('hidden');
+      document.getElementById('historiqueSection').classList.add('hidden');
+      
+      // Vider le container d'alertes
+      document.getElementById('alertContainer').innerHTML = '';
+      
+      // Recharger complètement les données
+      await chargerDonneesPartie();
+      
+      afficherAlerte('success', `✅ Vous êtes maintenant dans la partie "${partieSelectionnee.parties.nom_partie}"`);
+    } catch (error) {
+      console.error('Erreur lors du changement de partie:', error);
+      afficherAlerte('danger', '❌ Erreur lors du changement de partie');
+      // Remettre l'ancienne sélection en cas d'erreur
+      select.value = partieActuelle || '';
+    }
   } else {
     // Remettre l'ancienne sélection
     select.value = partieActuelle || '';
@@ -486,6 +508,106 @@ async function changerPartie() {
       document.getElementById('historiqueContent').innerHTML = html;
       document.getElementById('historiqueSection').classList.remove('hidden');
     }
+    // Fonction pour charger les données d'une partie spécifique
+async function chargerDonneesPartie() {
+  try {
+    if (!partieActuelle) {
+      document.getElementById('waitingSection').classList.remove('hidden');
+      document.getElementById('statutBadge').textContent = '⏳ En attente';
+      document.getElementById('statutBadge').className = 'status-badge status-attente';
+      return;
+    }
+    
+    // Récupérer les infos de la partie actuelle
+    const partiesJoueurFiltered = await supabaseSelect('parties_joueurs',
+      `?id_joueur=eq.${joueurId}&id_partie=eq.${partieActuelle}&select=*,parties(*),joueurs!parties_joueurs_id_cible_fkey(nom,prenom,pseudo),defis(*)`
+    );
+
+    if (partiesJoueurFiltered.length === 0) {
+      document.getElementById('waitingSection').classList.remove('hidden');
+      document.getElementById('statutBadge').textContent = '⏳ En attente';
+      document.getElementById('statutBadge').className = 'status-badge status-attente';
+      
+      // Mettre à jour les infos avec le nom de partie si disponible
+      if (partiesJoueur.length > 0) {
+        const partieInfo = partiesJoueur.find(p => p.parties.id == partieActuelle);
+        if (partieInfo) {
+          document.getElementById('infosJoueur').innerHTML = 
+            `Bienvenue <strong>${joueurPseudo}</strong> - Partie: <strong>${partieInfo.parties.nom_partie}</strong>`;
+        }
+      }
+    } else {
+      partieJoueurData = partiesJoueurFiltered[0];
+      
+      // Mettre à jour les infos avec le nom de partie
+      document.getElementById('infosJoueur').innerHTML = 
+        `Bienvenue <strong>${joueurPseudo}</strong> - Partie: <strong>${partieJoueurData.parties.nom_partie}</strong>`;
+      
+      afficherHistorique();
+      
+      // Vérifier si la partie est lancée
+      if (partieJoueurData.parties.statut !== 'lancee') {
+        document.getElementById('waitingSection').classList.remove('hidden');
+        document.getElementById('statutBadge').textContent = '⏳ En attente';
+        document.getElementById('statutBadge').className = 'status-badge status-attente';
+      } else {
+        // Partie lancée - vérifier le statut du joueur
+        if (partieJoueurData.statut_joueur === 'vivant') {
+          document.getElementById('statutBadge').textContent = '✅ Vivant';
+          document.getElementById('statutBadge').className = 'status-badge status-vivant';
+          document.getElementById('targetSection').classList.remove('hidden');
+          
+          // Afficher les infos de la cible
+          const cible = partieJoueurData.joueurs;
+          // Vérifier si le joueur doit se tuer lui-même (victoire)
+          if (partieJoueurData.id_cible === joueurId) {
+            // Le joueur a gagné !
+            document.getElementById('targetSection').classList.add('hidden');
+            document.getElementById('victorySection').classList.remove('hidden');
+            // Marquer la partie comme terminée
+            await supabaseUpdate('parties',
+              { statut: 'terminee' },
+              `?id=eq.${partieJoueurData.id_partie}`
+            );
+            envoyerNotification('🏆 VICTOIRE !', 'Félicitations ! Vous avez gagné la partie !');
+          } else {
+            // Affichage normal de la cible
+            document.getElementById('cibleNom').textContent = cible.nom;
+            document.getElementById('ciblePrenom').textContent = cible.prenom;
+            document.getElementById('ciblePseudo').textContent = cible.pseudo;
+            document.getElementById('defiDescription').textContent = partieJoueurData.defis.description;
+          }
+          
+          // Réinitialiser le bouton de kill
+          const btnKill = document.getElementById('btnDeclareKill');
+          btnKill.disabled = false;
+          btnKill.textContent = '⚔️ Déclarer un Kill';
+          btnKill.style.background = '#dc3545';
+          btnKill.style.cursor = 'pointer';
+          btnKill.classList.remove('hidden');
+          
+          // Vérifier si le joueur a déjà déclaré un kill en attente
+          await verifierKillDeclareParJoueur();
+        }
+        else if (partieJoueurData.statut_joueur === 'mort') {
+          document.getElementById('statutBadge').textContent = '💀 Éliminé';
+          document.getElementById('statutBadge').className = 'status-badge status-mort';
+          document.getElementById('deadSection').classList.remove('hidden');
+        }
+      }
+    }
+
+    // Vérifier s'il y a un kill en attente contre ce joueur
+    await verifierKillEnAttente();
+    // Vérifier s'il y a des kills validés récemment
+    await verifierKillsValides();
+    
+  } catch (error) {
+    console.error('Erreur lors du chargement des données de partie:', error);
+    afficherAlerte('danger', '❌ Erreur lors du chargement des données de la partie');
+  }
+}
+
     // Fonction principale de chargement
 async function chargerDashboard() {
   try {
