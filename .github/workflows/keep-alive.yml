@@ -1,0 +1,24 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Exécute la tâche tous les jours à 5h30 UTC
+    # Vous pouvez ajuster cette fréquence, une fois tous les 1 à 6 jours suffit.
+    - cron: '30 5 * * *'
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase a dummy table
+        run: |
+          curl -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/your_dummy_function" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+
+          # OU, si vous avez une table publique (plus simple)
+          # Remplacez 'your_table_name' par le nom d'une de vos tables.
+          # On ne récupère qu'une seule ligne pour limiter l'impact.
+          curl "${{ secrets.SUPABASE_URL }}/rest/v1/defis?select=*&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
