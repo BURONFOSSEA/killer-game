@@ -27,7 +27,7 @@
     // Enregistrer le Service Worker dès la page d'accueil pour que le site soit reconnu comme une PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
+        navigator.serviceWorker.register('sw.js').then(registration => {
           console.log('Service Worker enregistré avec succès depuis index.html');
         }).catch(error => {
           console.error('Échec de l\'enregistrement du Service Worker:', error);
