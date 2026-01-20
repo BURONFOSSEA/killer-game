@@ -10,7 +10,8 @@ const urlsToCache = [
   '/supabaseClient.js',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/style.css'
   // Ajoutez ici d'autres fichiers importants (CSS, autres pages HTML...)
 ];
 
