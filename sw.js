@@ -48,8 +48,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'Killer Game';
   const options = {
     body: data.body || 'Vous avez une nouvelle notification.',
-    icon: 'icon-192.png',
-    badge: 'icon-192.png'
+    icon: 'icon_192.png',
+    badge: 'icon_192.png'
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
