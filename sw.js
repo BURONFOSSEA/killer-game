@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = 'killer-game-cache-v2';
+const CACHE_NAME = 'killer-game-cache-v3';
 // Les fichiers essentiels de votre application à mettre en cache
 const urlsToCache = [
   './',
