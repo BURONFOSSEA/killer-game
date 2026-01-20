@@ -285,6 +285,9 @@
   </div>
   
   <button class="btn btn-logout" onclick="deconnexion()" style="margin-top: 10px;">🚪 Se déconnecter</button>
+  <button id="enable-notifications-btn" class="btn-retour" style="margin-top: 10px; background: #28a745; border-color: #28a745;">
+    🔔 Activer les notifications
+  </button>
 </div>
     
     <!-- Alertes de notification -->
@@ -981,5 +984,96 @@ partieActuelle = localStorage.getItem('partieActuelle');
 // Charger le dashboard au démarrage
 chargerDashboard();
   </script>
+<script>
+  // --- LOGIQUE DES NOTIFICATIONS PUSH ---
+
+  // ⚠️ REMPLACE CECI PAR TA CLÉ PUBLIQUE VAPID
+  const VAPID_PUBLIC_KEY = BHSsClX_7aQyl9oYWJubFEzmKSEHQMC2ozwIR960B6s44y2qGzQ2ppB3cFUeICM5mLwUFbc-GE72uedHoZvPmL4;
+
+  const enableNotificationsButton = document.getElementById('enable-notifications-btn');
+
+  // Fonction utilitaire pour la clé VAPID
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // Fonction principale pour s'abonner
+  async function subscribeUserToPush() {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+
+      // On utilise ton joueurId global qui est déjà défini
+      if (!joueurId) {
+        throw new Error('ID du joueur non trouvé.');
+      }
+
+      console.log('Envoi de l\'abonnement à Supabase...');
+      // On utilise TA fonction supabaseUpdate
+      await supabaseUpdate('joueurs', 
+        { push_subscription: subscription }, 
+        `?id=eq.${joueurId}`
+      );
+      
+      afficherAlerte('success', '✅ Notifications activées avec succès !');
+      updateNotificationButton();
+
+    } catch (error) {
+      console.error('Erreur lors de l\'abonnement aux notifications:', error);
+      if (error.name === 'NotAllowedError') {
+        afficherAlerte('warning', '⚠️ Vous avez bloqué les notifications. Changez les paramètres de votre navigateur pour les autoriser.');
+      } else {
+        afficherAlerte('danger', '❌ Impossible d\'activer les notifications.');
+      }
+      updateNotificationButton();
+    }
+  }
+
+  // Gère l'état du bouton au chargement de la page
+  function updateNotificationButton() {
+    if (!('serviceWorker' in navigator && 'PushManager' in window)) {
+      enableNotificationsButton.textContent = 'Notifications non supportées';
+      enableNotificationsButton.disabled = true;
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      enableNotificationsButton.textContent = '✅ Notifications Activées';
+      enableNotificationsButton.disabled = true;
+      enableNotificationsButton.style.background = '#218838';
+      enableNotificationsButton.style.borderColor = '#218838';
+    } else if (Notification.permission === 'denied') {
+      enableNotificationsButton.textContent = '❌ Notifications Bloquées';
+      enableNotificationsButton.disabled = true;
+      enableNotificationsButton.style.background = '#dc3545';
+      enableNotificationsButton.style.borderColor = '#dc3545';
+    } else {
+       enableNotificationsButton.textContent = '🔔 Activer les notifications';
+       enableNotificationsButton.disabled = false;
+    }
+  }
+
+  // Attacher l'événement au clic
+  enableNotificationsButton.addEventListener('click', () => {
+    if (Notification.permission === 'default') {
+      subscribeUserToPush();
+    }
+  });
+
+  // Mettre à jour le bouton au chargement initial
+  updateNotificationButton();
+</script>
+
 </body>
 </html>
