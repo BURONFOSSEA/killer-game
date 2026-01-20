@@ -9,7 +9,7 @@ const urlsToCache = [
   'player-dashboard.html',
   'supabaseClient.js',
   'manifest.json',
-  'icon-192.png',
+  'icon_192.png',
   'icon-512.png',
   'style.css'
   // Ajoutez ici d'autres fichiers importants (CSS, autres pages HTML...)
