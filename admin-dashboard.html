@@ -205,7 +205,24 @@ window.location.href = 'admin-login.html';
 <div id="killsEnAttenteDetails" style="margin-bottom:30px;"></div>
 <h3>📜 Historique des kills réussis</h3>
 <div id="historiqueKillsDetails" style="margin-bottom:30px;"></div>
-<button class="btn btn-danger" onclick="fermerModalDetails()" style="margin-top:20px;">
+<!-- NOUVELLE SECTION POUR ENVOYER DES MESSAGES -->
+<div style="background:#f0f0f0; padding:20px; border-radius:8px; margin-top:30px; border-top: 4px solid #f5576c;">
+    <h3 style="color:#f5576c; margin-bottom:15px;">📣 Envoyer une notification à tous les joueurs vivants</h3>
+    <div class="form-group">
+        <label for="messageTitre">Titre de la notification (optionnel)</label>
+        <input type="text" id="messageTitre" placeholder="Ex: Rappel important !">
+    </div>
+    <div class="form-group">
+        <label for="messageContenu">Message de la notification</label>
+        <textarea id="messageContenu" rows="4" style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px; font-size:16px;" placeholder="Écrivez votre message ici..."></textarea>
+    </div>
+    <!-- Le bouton appellera une nouvelle fonction JS que nous allons créer -->
+    <button id="btnSendMessage" class="btn btn-primary" style="width:100%; padding:15px;">
+        🚀 Envoyer le message
+    </button>
+</div>
+<!-- FIN DE LA NOUVELLE SECTION -->
+    <button class="btn btn-danger" onclick="fermerModalDetails()" style="margin-top:20px;">
 ❌ Fermer
 </button>
 </div>
@@ -702,7 +719,8 @@ await chargerBouclePartie(idPartie);
 await chargerKillsEnAttentePartie(idPartie);
 // Charger l'historique des kills - AJOUTEZ CETTE LIGNE
 await chargerHistoriqueKills(idPartie);
-document.getElementById('modalDetails').style.display = 'block';
+ document.getElementById('btnSendMessage').onclick = () => envoyerMessagePartie(idPartie);
+ document.getElementById('modalDetails').style.display = 'block';
 }
 // Charger la boucle des joueurs pour une partie
 async function chargerBouclePartie(idPartie) {
@@ -998,6 +1016,59 @@ async function eliminerJoueur(idJoueur, idPartie, pseudoJoueur) {
     } catch (error) {
         console.error('Erreur lors de l\'élimination:', error);
         alert('❌ Erreur lors de l\'élimination du joueur');
+    }
+}
+    // NOUVELLE FONCTION POUR ENVOYER UN MESSAGE À TOUTE LA PARTIE
+async function envoyerMessagePartie(idPartie) {
+    const titre = document.getElementById('messageTitre').value;
+    const contenu = document.getElementById('messageContenu').value;
+    const btn = document.getElementById('btnSendMessage');
+
+    if (!contenu) {
+        alert('⚠️ Le message ne peut pas être vide.');
+        return;
+    }
+
+    if (!confirm(`Envoyer le message suivant à tous les joueurs vivants de cette partie ?\n\n"${contenu}"`)) {
+        return;
+    }
+
+    // Désactiver le bouton pour éviter les double-clics
+    btn.disabled = true;
+    btn.textContent = '⏳ Envoi en cours...';
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/send-broadcast-notification`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                partyId: idPartie,
+                messageTitle: titre,
+                messageBody: contenu
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Erreur inconnue');
+        }
+
+        alert(`✅ Message envoyé avec succès à ${result.count || 0} joueur(s) !`);
+        // Vider les champs après l'envoi
+        document.getElementById('messageTitre').value = '';
+        document.getElementById('messageContenu').value = '';
+
+    } catch (error) {
+        console.error("Erreur lors de l'envoi du message :", error);
+        alert(`❌ Erreur lors de l'envoi du message : ${error.message}`);
+    } finally {
+        // Réactiver le bouton
+        btn.disabled = false;
+        btn.textContent = '🚀 Envoyer le message';
     }
 }
 </script>
