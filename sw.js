@@ -3,15 +3,15 @@
 const CACHE_NAME = 'killer-game-cache-v1';
 // Les fichiers essentiels de votre application à mettre en cache
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/player-login.html',
-  '/player-dashboard.html',
-  '/supabaseClient.js',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/style.css'
+  './',
+  'index.html',
+  'player-login.html',
+  'player-dashboard.html',
+  'supabaseClient.js',
+  'manifest.json',
+  'icon-192.png',
+  'icon-512.png',
+  'style.css'
   // Ajoutez ici d'autres fichiers importants (CSS, autres pages HTML...)
 ];
 
@@ -48,8 +48,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'Killer Game';
   const options = {
     body: data.body || 'Vous avez une nouvelle notification.',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png'
+    icon: 'icon-192.png',
+    badge: 'icon-192.png'
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
